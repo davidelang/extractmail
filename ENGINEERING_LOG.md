@@ -24,3 +24,8 @@ Append-only activity log for this subproject.
 - YAML shell-ereceipt + samsclub-fuel; python extractmail_stdin + run_goldens PASS
 - Spec EXTERNAL; branch email-connection
 
+
+## 2026-08-02 - M1 Android AAR surface
+
+- android/ library module extractmail.aar API surface
+
