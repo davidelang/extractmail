@@ -1,0 +1,13 @@
+# Special-file merge drivers (run ./install-merge-drivers.sh)
+ENGINEERING_LOG.md merge=ve-englog
+TODO.md merge=ve-special-ours
+project-facts.md merge=ve-special-ours
+
+# Config smudge (optional; needs project.config)
+run-grok filter=manage-configs
+run-grok-planner filter=manage-configs
+run-grok-master filter=manage-configs
+run-grok-coder filter=manage-configs
+run-grok-orchestrator filter=manage-configs
+filter-apply-config !filter
+filter-clean-config !filter

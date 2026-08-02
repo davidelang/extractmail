@@ -1,0 +1,76 @@
+#!/bin/bash
+# filter-clean-config
+# Git clean filter for manage-configs.
+# Scrubs real values back to @@TOKEN@@ on git add.
+# Supports shell (VAR= aware), toml, md/text (dumb token replace).
+# Run: git config filter.manage-configs.clean './filter-clean-config'
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG="$SCRIPT_DIR/project.config"
+
+if [ ! -f "$CONFIG" ]; then
+  echo "WARNING: project.config not found next to script; passing through (no scrub)" >&2
+  cat
+  exit 0
+fi
+
+# Parse config into env (simple name=value)
+while IFS='=' read -r key val; do
+  if [[ "$key" =~ ^[a-z_]+$ && -n "$val" ]]; then
+    export "CONF_${key^^}=$val"
+  fi
+done < "$CONFIG"
+
+# Tokens to scrub: common ones
+declare -A TOKENS=(
+  [sandbox_path]="@@SANDBOX_PATH@@"
+  [planning_user]="@@PLANNING_USER@@"
+  [coder_user]="@@CODER_USER@@"
+  [orchestrator_user]="@@ORCHESTRATOR_USER@@"
+  [code_group]="@@CODE_GROUP@@"
+  [sandbox_group]="@@SANDBOX_GROUP@@"
+  [shared_group]="@@SHARED_GROUP@@"
+  [grok_bin_default]="@@GROK_BIN_DEFAULT@@"
+)
+
+# For shell files: scrub VAR=real back to VAR=@@TOKEN@@
+# Uses grep to find assignments, then sed.
+scrub_shell() {
+  local content
+  content=$(cat)
+  for var in "${!TOKENS[@]}"; do
+    token="${TOKENS[$var]}"
+    # Look for VAR=... or VAR="..." etc, replace value with token
+    # Key off LHS as per requirements
+    content=$(echo "$content" | sed -E "s/^([[:space:]]*(export[[:space:]]+)?${var}[[:space:]]*)=.*/\1=${token}/")
+  done
+  echo "$content"
+}
+
+# For other files (toml, md, text): dumb string replace of known values with tokens
+scrub_text() {
+  local content
+  content=$(cat)
+  for var in "${!TOKENS[@]}"; do
+    token="${TOKENS[$var]}"
+    confvar="CONF_${var^^}"
+    val="${!confvar:-}"
+    if [ -n "$val" ]; then
+      content="${content//"$val"/$token}"
+    fi
+  done
+  echo "$content"
+}
+
+# Detect type
+filename="${1:-}"
+if [[ "$filename" == *.sh || "$filename" == *run-grok* || "$filename" == *setup* || "$filename" == *filter* || "$filename" == *set-* ]]; then
+  scrub_shell
+else
+  scrub_text
+fi
+
+# Note on smart: future could diff vs HEAD to only scrub changed sections.
+# See execution log for details.

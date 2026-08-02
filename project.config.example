@@ -1,0 +1,21 @@
+# Copy to project.config (gitignored) and adjust.
+# Launcher wiring only — no agent law.
+
+planning_user=ai-planner
+coder_user=ai-coder
+master_user=ai-coder
+orchestrator_user=ai-orchestrator
+primary_user=dlang
+
+# Library hosts:
+sandbox_dir=sandbox
+# VehicleExpenses app:
+# sandbox_dir=dev-ai-interaction
+
+# Optional models (empty = grok default except planner may use GROK_PLANNER_MODEL env)
+# planner_model=grok-build
+# coder_model=
+# master_model=
+
+# umask_launch=002
+# grok_bin=/home/dlang/git/grok/bin/grok
