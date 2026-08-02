@@ -1,9 +1,9 @@
 # AGENT_CONTEXT.md — extractmail
 
-- **Agent ID:** master
+- **Agent ID:** master-worktree
 - **Current Branch:** master
 - **Role:** Coder/Planner (product)
-- **Sandbox:** `/home/dlang/git/extractmail/sandbox/`
+- **Sandbox:** `/home/dlang/git/extractmail/master/sandbox/`
 - **Status:** ACTIVE
 
 ## Instructions
