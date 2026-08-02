@@ -1,0 +1,42 @@
+# Library host Grok config (checked in). Project-local; not VE Android-focused.
+# project.config is gitignored and must stay untracked.
+
+[permission]
+rules = [
+  { action = "allow", tool = "read" },
+  { action = "allow", tool = "grep" },
+  { action = "allow", tool = "bash", pattern = "git *" },
+  { action = "allow", tool = "bash", pattern = "gh *" },
+  { action = "allow", tool = "bash", pattern = "ls *" },
+  { action = "allow", tool = "bash", pattern = "cat *" },
+  { action = "allow", tool = "bash", pattern = "echo *" },
+  { action = "allow", tool = "bash", pattern = "find *" },
+  { action = "allow", tool = "bash", pattern = "true" },
+  { action = "allow", tool = "bash", pattern = "jq *" },
+  { action = "allow", tool = "bash", pattern = "./get-builds-tag.sh*" },
+  { action = "allow", tool = "bash", pattern = "./append-to-engineering-log*" },
+  { action = "allow", tool = "bash", pattern = "./todo-append*" },
+  { action = "allow", tool = "bash", pattern = "./todo-close*" },
+  { action = "allow", tool = "bash", pattern = "./run-grok*" },
+  { action = "allow", tool = "bash", pattern = "./setup_agent.sh*" },
+  { action = "allow", tool = "bash", pattern = "./update-rules.sh*" },
+  { action = "allow", tool = "bash", pattern = "./remove_worktree.sh*" },
+  { action = "allow", tool = "bash", pattern = "./install-merge-drivers.sh*" },
+  { action = "allow", tool = "bash", pattern = "./checkifclean*" },
+  { action = "allow", tool = "bash", pattern = "mkdir -p *" },
+  { action = "allow", tool = "bash", pattern = "cp *" },
+  { action = "allow", tool = "bash", pattern = "rm -f *" },
+  { action = "allow", tool = "bash", pattern = "chmod *" },
+  { action = "allow", tool = "bash", pattern = "ln -s *" },
+  { action = "allow", tool = "search_replace", pattern = "sandbox/**" },
+  { action = "allow", tool = "write", pattern = "sandbox/**" },
+  { action = "allow", tool = "search_replace", pattern = "**/project-facts.md" },
+  { action = "allow", tool = "write", pattern = "**/project-facts.md" },
+  # Execution: allow edits after plan approval (plan mode still restricted by hooks if present)
+  { action = "allow", tool = "search_replace" },
+  { action = "allow", tool = "write" },
+]
+
+[skills]
+# Same multi-agent policy as VE: do not use bundled design/execute-plan/implement paths
+disabled = ["pr-babysit", "execute-plan", "design", "check-work", "implement"]

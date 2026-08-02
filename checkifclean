@@ -1,0 +1,201 @@
+#!/usr/bin/env bash
+# checkifclean — report clean / not-clean for VE + third_party (+ optional lib hosts)
+# Design: third-party-fetch-deps-design H×D matrix
+#
+# Usage:
+#   ./checkifclean [-v|-vv] [--gate H1|H2|H3] [--preset agent-4|extractmail|default]
+#   ./checkifclean --json   # machine-readable summary
+#
+# Exit 0 = clean enough for the selected gate; 1 = not-clean (fatal for that gate);
+# Exit 2 = usage error.
+set -euo pipefail
+
+VERBOSE=0
+GATE="H3"
+PRESET="default"
+JSON=0
+VE_ROOT="$(pwd)"
+FATAL=0
+WARN=0
+ISSUES=()
+
+usage() {
+  cat <<'EOF'
+Usage: checkifclean [-v|-vv] [--gate H1|H2|H3] [--preset agent-4|extractmail|default]
+
+Presets (depth at H1,H2,H3): D0=metadata D1=build D2=tests D3=full regress
+  default / agent-4:  H1=D0  H2=D1  H3=D1
+  extractmail:        H1=D0  H2=D1  H3=D3
+
+H1 is always metadata-only (D0) before a build is attempted.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -vv) VERBOSE=2; shift ;;
+    -v) VERBOSE=1; shift ;;
+    --gate) GATE="$2"; shift 2 ;;
+    --preset) PRESET="$2"; shift 2 ;;
+    --json) JSON=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "unknown: $1" >&2; usage; exit 2 ;;
+  esac
+done
+
+# depth required for current gate
+depth_for_gate() {
+  case "$PRESET" in
+    extractmail)
+      case "$GATE" in H1) echo D0 ;; H2) echo D1 ;; H3) echo D3 ;; *) echo D0 ;; esac
+      ;;
+    agent-4|default|*)
+      case "$GATE" in H1) echo D0 ;; H2) echo D1 ;; H3) echo D1 ;; *) echo D0 ;; esac
+      ;;
+  esac
+}
+
+DEPTH="$(depth_for_gate)"
+DIRTY_REPOS=()
+
+add_issue() {
+  local repo="$1" level="$2" msg="$3"
+  ISSUES+=("$level|$repo|$msg")
+  if [[ "$level" == "fatal" ]]; then FATAL=1; fi
+  if [[ "$level" == "warn" ]]; then WARN=1; fi
+  local r
+  for r in "${DIRTY_REPOS[@]:-}"; do
+    [[ "$r" == "$repo" ]] && return
+  done
+  DIRTY_REPOS+=("$repo")
+}
+
+# --- VE tree ---
+check_ve() {
+  if ! git -C "$VE_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    add_issue "ve" "fatal" "not a git worktree"
+    return
+  fi
+  local st
+  st="$(git -C "$VE_ROOT" status --porcelain 2>/dev/null || true)"
+  if [[ -n "$st" ]]; then
+    add_issue "ve" "fatal" "uncommitted changes in VE worktree"
+    if [[ "$VERBOSE" -ge 2 ]]; then
+      echo "$st" | sed 's/^/    /'
+    fi
+  fi
+}
+
+# --- third_party ---
+check_third_party_one() {
+  local name="$1"
+  local dir="$VE_ROOT/third_party/$name"
+  local lock="$dir/lock.yaml"
+  local src="$dir/src"
+  local stf="$dir/status.local"
+  [[ -f "$lock" ]] || return 0
+
+  local mode="ro"
+  [[ -f "$stf" ]] && mode="$(sed -n 's/^mode:[[:space:]]*//p' "$stf" | head -1)"
+  mode="${mode:-ro}"
+
+  local lock_sha
+  lock_sha="$(sed -n 's/^git_sha:[[:space:]]*"\(.*\)"/\1/p' "$lock" | head -1)"
+
+  if [[ ! -r "$lock" ]]; then
+    add_issue "third_party/$name" "fatal" "lock.yaml unreadable (permissions?)"
+  fi
+
+  if [[ -d "$src/.git" || -f "$src/.git" ]]; then
+    local head dirty
+    head="$(git -C "$src" rev-parse HEAD 2>/dev/null || echo "")"
+    dirty="$(git -C "$src" status --porcelain 2>/dev/null || true)"
+    if [[ -n "$dirty" ]]; then
+      # always reportable; fatal in ro, warn in rw (policy: H gates treat ro dirty as fatal for D0)
+      if [[ "$mode" == "ro" ]]; then
+        add_issue "third_party/$name" "fatal" "src dirty while mode=ro"
+      else
+        add_issue "third_party/$name" "warn" "src dirty while mode=rw (expected until pin promote)"
+      fi
+      if [[ "$VERBOSE" -ge 2 ]]; then
+        echo "  [$name git status]"
+        git -C "$src" status --short 2>/dev/null | sed 's/^/    /' || true
+      fi
+    fi
+    if [[ -n "$lock_sha" && "$lock_sha" != "TBD" && -n "$head" ]]; then
+      if ! git -C "$src" rev-parse --verify "${lock_sha}^{commit}" >/dev/null 2>&1; then
+        add_issue "third_party/$name" "fatal" "lock sha not present in src"
+      elif [[ "$mode" == "ro" ]]; then
+        local hfull lfull
+        hfull="$(git -C "$src" rev-parse HEAD)"
+        lfull="$(git -C "$src" rev-parse "$lock_sha")"
+        if [[ "$hfull" != "$lfull" ]]; then
+          add_issue "third_party/$name" "fatal" "HEAD != lock sha in ro mode"
+        fi
+      fi
+    fi
+  else
+    if [[ -n "$lock_sha" && "$lock_sha" != "TBD" ]]; then
+      add_issue "third_party/$name" "warn" "no src checkout (run fetch-deps)"
+    fi
+  fi
+
+  # artifact vs from_src presence (if path listed)
+  if grep -q 'path:' "$lock" 2>/dev/null; then
+    local p
+    p="$(sed -n 's/^[[:space:]]*path:[[:space:]]*//p' "$lock" | head -1 | tr -d "\"'")"
+    if [[ -n "$p" && ! -f "$dir/$p" && ! -f "$VE_ROOT/$p" ]]; then
+      add_issue "third_party/$name" "warn" "artifact path missing: $p (rebuild-if-missing policy later)"
+    fi
+  fi
+}
+
+check_all_third_party() {
+  local d
+  for d in "$VE_ROOT"/third_party/*/; do
+    [[ -f "${d}lock.yaml" ]] || continue
+    check_third_party_one "$(basename "$d")"
+  done
+}
+
+# --- report ---
+check_ve
+check_all_third_party
+
+# Gate fatality: for H1 only fatal issues matter; warns don't fail H1 unless we want
+# D0 fatality = FATAL count from fatal issues
+# D1+ would run build — not implemented here; caller runs build after exit 0
+
+if [[ "$JSON" -eq 1 ]]; then
+  echo "{\"gate\":\"$GATE\",\"depth\":\"$DEPTH\",\"preset\":\"$PRESET\",\"fatal\":$FATAL,\"warn\":$WARN,\"repos\":$(printf '%s\n' "${DIRTY_REPOS[@]:-}" | jq -R . | jq -s . 2>/dev/null || echo '[]')}"
+else
+  echo "checkifclean: gate=$GATE depth=$DEPTH preset=$PRESET"
+  if [[ "$FATAL" -eq 0 && "$WARN" -eq 0 ]]; then
+    echo "RESULT=clean"
+  elif [[ "$FATAL" -eq 0 ]]; then
+    echo "RESULT=not-clean (warnings only)"
+    echo "repos: ${DIRTY_REPOS[*]:-}"
+  else
+    echo "RESULT=not-clean"
+    echo "repos: ${DIRTY_REPOS[*]:-}"
+  fi
+  if [[ "$VERBOSE" -ge 1 || "$FATAL" -ne 0 || "$WARN" -ne 0 ]]; then
+    for line in "${ISSUES[@]:-}"; do
+      level="${line%%|*}"
+      rest="${line#*|}"
+      repo="${rest%%|*}"
+      msg="${rest#*|}"
+      echo "  [$level] $repo: $msg"
+    done
+  fi
+fi
+
+# H1/D0 and higher: fatal issues => exit 1
+if [[ "$FATAL" -ne 0 ]]; then
+  exit 1
+fi
+# For D1+ gates, warn that build must still be run by caller
+if [[ "$DEPTH" != "D0" && "$DEPTH" != "D-" ]]; then
+  [[ "$VERBOSE" -ge 1 ]] && echo "note: gate $GATE requires $DEPTH — run project verify/build after metadata clean"
+fi
+exit 0
