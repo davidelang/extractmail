@@ -1,0 +1,32 @@
+# Builtin type: samsclub-fuel
+# Golden: fixtures/expected-sams-club-receipt1.json
+type: samsclub-fuel
+version: 1
+brand: SamsClub
+currency: USD
+detect:
+  any:
+    - body_contains: samsclub.com
+    - body_contains: fuel station receipt
+    - body_contains: "Sam's Club fuel"
+reject:
+  any:
+    - body_contains: ereceiptshell
+fields:
+  gallons:
+    strategy: reference_js
+    note: "N.NNN gal near Fuel - product"
+  cost:
+    strategy: reference_js
+    note: "Total paid"
+  timestamp:
+    strategy: reference_js
+    note: "Fri, MMM d at h:mm am/pm + year/zone from email Date"
+  location:
+    strategy: reference_js
+    note: "Club + street + city state zip"
+impl: reference-js
+module: sams-club-receipt-parser.js
+export: parseSamsClubReceiptHtml
+requires:
+  emailDateHeader: true

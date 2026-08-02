@@ -1,0 +1,30 @@
+# Builtin type: shell-ereceipt
+# Goldens: fixtures/expected-shell-receipt1.json, expected-shell-receipt2.json
+type: shell-ereceipt
+version: 1
+brand: Shell
+currency: USD
+detect:
+  any:
+    - body_contains: ereceiptshell
+    - body_contains: mail.ereceiptshell.com
+    - body_contains: "Welcome to Shell"
+reject:
+  any:
+    - body_contains: samsclub.com
+fields:
+  gallons:
+    strategy: reference_js
+    note: "Fuel Type / Gallons / Price/Gal / Fuel Total row"
+  cost:
+    strategy: reference_js
+    note: "Amount Paid after discounts"
+  timestamp:
+    strategy: reference_js
+    note: "MM-DD-YYYY + HH:MM:SS as UTC wall clock (v1)"
+  location:
+    strategy: reference_js
+    note: "Street, city, ST ZIP after receipt welcome"
+impl: reference-js
+module: shell-receipt-parser.js
+export: parseShellReceiptHtml

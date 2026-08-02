@@ -12,3 +12,9 @@ third_party/*/src/
 third_party/*/status.local
 third_party/*/*.local
 # --- end third_party consumer ---
+
+**/__pycache__/
+*.pyc
+android/.gradle/
+android/**/build/
+.write_ok

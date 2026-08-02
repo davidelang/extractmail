@@ -18,3 +18,9 @@ Append-only activity log for this subproject.
 - Host: ~/git/extractmail — GitHub davidelang/extractmail
 - Formal plans under dev-ai-interaction/plans/*-20260802-0348-plan.md
 - Continue email/tabular work via library host + VE pin bumps only
+
+## 2026-08-02 - M1 stdin extractors + goldens
+
+- YAML shell-ereceipt + samsclub-fuel; python extractmail_stdin + run_goldens PASS
+- Spec EXTERNAL; branch email-connection
+
