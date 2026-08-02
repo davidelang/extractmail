@@ -2,6 +2,6 @@
 
 - **Agent ID:** master
 - **Current Branch:** master
-- **Role:** Master / product (planner-coder as launched)
+- **Role:** Master / product
 - **Sandbox:** /home/dlang/git/extractmail/sandbox/
 - **Status:** ACTIVE
