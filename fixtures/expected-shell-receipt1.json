@@ -1,0 +1,13 @@
+{
+  "brand": "Shell",
+  "currency": "USD",
+  "cost": 144.77,
+  "gallons": 32.036,
+  "timestampLocal": "2025-02-01T20:24:00",
+  "timestampMs": 1738441440000,
+  "locationText": "Shell — 2627 YOSEMITE AVE, SIMI VALLEY, CA 93063-6546",
+  "siteId": "57444178305",
+  "pump": "6",
+  "product": "VPOWER CR #06",
+  "notes": "Amount Paid after Fuel Discount; Fuel Total pre-discount was 147.97. Timestamp rule: MM-DD-YYYY HH:MM:SS treated as UTC wall clock for stable epoch (v1)."
+}

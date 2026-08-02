@@ -1,0 +1,14 @@
+{
+  "brand": "SamsClub",
+  "currency": "USD",
+  "cost": 136.3,
+  "gallons": 29.069,
+  "timestampLocal": "2026-07-31T20:43:00",
+  "timestampMs": 1785552180000,
+  "locationTextContains": ["18501", "Glendale"],
+  "product": "Fuel - premium",
+  "pump": "12",
+  "siteId": "876946187675617445213",
+  "emailDateHeader": "Fri, 31 Jul 2026 21:48:47 -0600",
+  "notes": "Fill wall time Fri, Jul 31 at 8:43 pm; year+zone from email Date (-0600)."
+}

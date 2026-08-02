@@ -1,0 +1,13 @@
+{
+  "brand": "Shell",
+  "currency": "USD",
+  "cost": 52.34,
+  "gallons": 13.12,
+  "timestampLocal": "2026-04-26T01:14:00",
+  "timestampMs": 1777166040000,
+  "locationText": "Shell — 18221 TOM WELLS RD, EHRENBERG, AZ 85334-0000",
+  "siteId": "12859343001",
+  "pump": "301",
+  "product": "Unleaded",
+  "notes": "Amount Paid after Fuel Discount; Fuel Total pre-discount was 55.88. Timestamp rule: MM-DD-YYYY HH:MM:SS treated as UTC wall clock for stable epoch (v1)."
+}

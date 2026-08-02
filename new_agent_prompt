@@ -1,0 +1,6 @@
+# Mandate Acknowledgment (library host)
+
+1. Read AGENT_CONTEXT.md, GROK.md, AGENT_MANDATES.md, project-facts.md.
+2. Confirm pwd once.
+3. Brief report: planning vs execution barrier; sandbox path; no VE app edits from this host unless you are in a VE worktree.
+4. STOP and wait for directive.
