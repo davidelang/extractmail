@@ -71,3 +71,5 @@ Tracked policy copies: commit on that worktree or `./update-rules.sh` from orche
 - Planning = research + plan file only.
 
 Report role, branch, and mandates understanding now.
+
+**Workflows:** same as VehicleExpenses — pack launchers, local PR (`./generate_pr.sh` → `sandbox/PRs/`), skills `prepare-local-pr` / `master-merge`.
