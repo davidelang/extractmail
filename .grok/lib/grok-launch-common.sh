@@ -16,18 +16,27 @@ fi
 SCRIPT_DIR="$(cd "$GROK_LAUNCHER_DIR" && pwd)"
 
 if [[ -f "$SCRIPT_DIR/project.config" ]]; then
-  # shellcheck disable=SC1090
-  . <(sed 's/=/ /; s/^/export /' "$SCRIPT_DIR/project.config" | grep -E '^[a-zA-Z_][a-zA-Z0-9_]* ')
+  # KEY=VALUE lines only (skip comments/blank). Keep equals — do not split on '='.
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -z "$line" ]] && continue
+    [[ "$line" =~ ^[a-zA-Z_][a-zA-Z0-9_]*= ]] || continue
+    # shellcheck disable=SC2163
+    export "$line"
+  done <"$SCRIPT_DIR/project.config"
 fi
 
 GROK_BIN="${GROK_BIN:-${grok_bin:-$HOME/git/grok/bin/grok}}"
 
-SANDBOX_REL="${sandbox_dir:-}"
+# Prefer sandbox_dir; accept legacy sandbox_path (VE filters/example).
+SANDBOX_REL="${sandbox_dir:-${sandbox_path:-}}"
 if [[ -z "$SANDBOX_REL" ]]; then
-  if [[ -d "$SCRIPT_DIR/sandbox" ]]; then
-    SANDBOX_REL="sandbox"
-  elif [[ -d "$SCRIPT_DIR/dev-ai-interaction" ]]; then
+  if [[ -d "$SCRIPT_DIR/dev-ai-interaction" ]]; then
     SANDBOX_REL="dev-ai-interaction"
+  elif [[ -d "$SCRIPT_DIR/sandbox" ]]; then
+    SANDBOX_REL="sandbox"
   else
     SANDBOX_REL="sandbox"
   fi
