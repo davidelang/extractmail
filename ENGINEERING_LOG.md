@@ -11,3 +11,10 @@ Append-only activity log for this subproject.
 - Retain Apps Script Gmail→Sheets path; test with same fixtures/configs
 - Awaiting GitHub repo URL; formal plans deferred until then
 - Dual eng-log with VehicleExpenses until dedicated agents own this repo
+
+## 2026-08-02 — third_party live; plans retargeted
+
+- VE branch has third_party/extractmail with lock.yaml (sha TBD until first pin)
+- Host: ~/git/extractmail — GitHub davidelang/extractmail
+- Formal plans under dev-ai-interaction/plans/*-20260802-0348-plan.md
+- Continue email/tabular work via library host + VE pin bumps only

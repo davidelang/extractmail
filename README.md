@@ -6,7 +6,8 @@ Not a full spreadsheet sync engine. Cursor state only (e.g. last Message-ID / UI
 
 ## Status
 
-Pre-repo staging. Awaiting GitHub URL under the owner’s user account.
+**SoT:** `~/git/extractmail` + `git@github.com:davidelang/extractmail.git`.  
+**VE pin:** `third_party/extractmail/`. This sandbox copy is seed only.
 
 | Milestone | Scope |
 |-----------|--------|
