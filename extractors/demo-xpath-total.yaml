@@ -1,0 +1,17 @@
+# Demo type: xpath/css field pack (stdlib fallback labels).
+# Not a production brand — used to exercise impl=xpath + EXTERNAL config loading.
+type: demo-xpath-total
+version: 1
+brand: Demo
+currency: USD
+impl: xpath
+detect:
+  any:
+    - body_contains: "DEMO_XPATH_RECEIPT"
+fields:
+  cost:
+    strategy: css
+    selector: "Total"
+  gallons:
+    strategy: css
+    selector: "Gallons"
