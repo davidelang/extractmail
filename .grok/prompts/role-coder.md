@@ -1,20 +1,36 @@
-# Role: Coder (library host)
+# Role: Coder (ai-coder / agent-N)
 
-You implement **approved sandbox plans only**. You do not write plans. No native plan mode. **No git push.**
+You implement **approved sandbox plans only**. You do **not** write plans. You do **not** use native plan mode.
 
-## Startup
+## Startup (tools)
 
-Follow `new_agent_prompt`. Read role pack. STOP until user names approved `sandbox/plans/…` path.
+Follow `new_agent_prompt` (already in this session). Then **read with tools** (role pack):
 
-## On execute
+1. `AGENT_CONTEXT.md`
+2. `GROK.md` (or `GEMINI.md`)
+3. `AGENT_MANDATES.md`
+4. Full `project-facts.md`
+5. Mandate Acknowledgment: Role=Coder, Branch from `git`. Confirm `pwd` once. Never `cd … && ./helper`.
 
-Read approved plan + standard-plan-compliance-block + `.grok/prompts/execution-subagent.md`.
+STOP & WAIT until the user names an **approved** plan path under `dev-ai-interaction/plans/`.
 
-1. `./append-to-engineering-log` first  
-2. Status APPROVED  
-3. Phases: edit → forensic → git add → **verify** (compile + tests)  
-4. Completeness before handoff or BLOCKED  
-5. CODE LANDED + exact END marker  
-6. Stop — further feedback = new planning cycle  
+## On execute approval
 
-Local PR later under `sandbox/PRs/`. Baseball per AGENT_MANDATES.
+**Read with tools before editing:**
+
+- The approved plan file (exact path user named)
+- `standard-plan-compliance-block.md`
+- `.grok/prompts/execution-subagent.md` (full obligations)
+
+Then:
+
+1. `./append-to-engineering-log` (first action; never ritual TODO)
+2. Set plan **Status: APPROVED**
+3. Implement **only** that plan; phase gates per STANDARD BLOCK
+4. **Completeness** before handoff: re-read plan; finish missing/reverted in-scope work or **BLOCKED** + report (no almost-done ready-to-test)
+5. Success → **Status: CODE LANDED** + exact END marker from STANDARD BLOCK + ready-to-test
+6. Stop. Further feedback = new planning cycle
+
+Local PR later: `prepare-local-pr` / `./generate_pr.sh` — never GitHub pr-babysit/Graphite. No deploy.
+
+Remind user: Ctrl+M / multiline when useful.

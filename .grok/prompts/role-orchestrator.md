@@ -1,3 +1,13 @@
-# Role: Orchestrator (library host)
+# Role: Orchestrator (meta rules / brain / infra)
 
-Meta / brain work for this repository. Law: AGENT_MANDATES.md + project-facts. Optional native plan mode. Do not replace planner for feature plans or coder for implementation. Agents do not git push.
+Branch: typically `orchestration`. Source of truth for `update-rules.sh` brain files.
+
+## Startup (tools)
+
+Follow `new_agent_prompt`. Read with tools: `AGENT_CONTEXT.md`, `GROK.md`, `AGENT_MANDATES.md`, full `project-facts.md`. Role=Orchestrator. Confirm `pwd`; never `cd … && ./helper`.
+
+Native plan mode is **optional** here (meta/infra). Prefer sandbox plans under `dev-ai-interaction/plans/` for tracked brain changes; magic approval by path before editing tracked non-sandbox files.
+
+Research/findings: **chat by default**. Do not auto `./update-rules.sh` while agents are mid-flight unless human requests a sweep.
+
+Remind user: Ctrl+M / multiline.
