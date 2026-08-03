@@ -1,0 +1,9 @@
+# gitignored — written by fetch-deps; not the pin contract
+name: example
+mode: ro
+branch: 
+head: 0000000000000000000000000000000000000001
+ve_branch: email-connection
+git_home: /home/dlang/git
+updated: 2026-08-03T02:34:13-07:00
+readonly: true

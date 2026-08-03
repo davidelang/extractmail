@@ -3,16 +3,16 @@
 # Design: dev-ai-interaction/research/third-party-fetch-deps-design-20260802.md
 #
 # Defaults simple:
-#   fetch-deps [name…]           # ro pin @ lock sha (patches, then chmod a-w)
-#   fetch-deps rw [name…]        # writable branch = VE branch, base = lock sha
+#   fetch-deps [name…]           # ro pin @ libpin.toml git_sha (patches, then chmod a-w)
+#   fetch-deps rw [name…]        # writable branch = VE branch, base = pin sha
 #   fetch-deps ro [name…]        # back to pin
 #   fetch-deps status [-v|-vv]
 #   fetch-deps refresh [name…]   # advance pin to library master tip (explicit)
 #   fetch-deps upgrade NAME --ref REF
-#   fetch-deps build [name…]
+#   fetch-deps build [name…]     # run build[] then get-artifacts
 #
-# Transport: local GIT_HOME → HTTPS; SSH only with --allow-ssh (dlang).
-# Agents have no GitHub SSH keys.
+# Pin file: third_party/<name>/libpin.toml
+# Transport: local GIT_HOME → HTTPS; SSH only with --allow-ssh.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -44,26 +44,26 @@ Usage:
   third_party/fetch-deps <command> [options] [NAME…]
 
 Commands:
-  (default)   Read-only pin @ lock git_sha (patches, then chmod a-w)
+  (default)   Read-only pin @ libpin.toml git_sha (patches, then sources RO)
   ro          Same as default; force back to pin
-  rw          Writable branch (default name = current VE branch), base = lock sha
-  status      Show mode / HEAD / lock / dirty (-v / -vv)
+  rw          Writable branch (default name = current VE branch), base = pin sha
+  status      Show mode / HEAD / pin / dirty (-v / -vv)
   refresh     Advance pin SHA from library master tip + materialize ro
-  upgrade     NAME --ref REF  try ref, build, copy artifacts, update lock
-  build       Run ./build and copy artifacts per lock from_src
+  upgrade     NAME --ref REF  try ref, build, collect artifacts, update libpin.toml
+  build       Run build[] from libpin.toml, then get-artifacts
 
 Options:
-  --allow-ssh          Permit git@ (dlang only)
+  --allow-ssh          Permit git@ (maintainer machines)
   --git-home DIR       Library host parent (default: monorepo sibling …/git)
   --branch NAME        rw branch name (default: VE HEAD branch)
-  --base REF           rw base (default: lock git_sha)
+  --base REF           rw base (default: pin git_sha)
   --ref REF            upgrade source ref
-  --depth N            optional shallow (not default)
+  --depth N            optional shallow clone (not default)
   --worktree-search P  extra local roots (colon-separated)
   -v, -vv              status verbosity
   -h, --help
 
-Lock = pin contract only (no mode). Checkout mode in status.local (gitignored).
+libpin.toml = pin contract only (no checkout mode). Mode is status.local (gitignored).
 EOF
 }
 
@@ -98,9 +98,9 @@ GIT_HOME="${GIT_HOME:-$(default_git_home)}"
 
 if [[ "$CMD" != "status" && "$CMD" != "upgrade" && ${#NAMES[@]} -eq 0 ]]; then
   for d in "$ROOT"/*/; do
-    [[ -f "${d}lock.yaml" ]] || continue
+    [[ -f "${d}libpin.toml" ]] || continue
     base="$(basename "$d")"
-    [[ "$base" == "rclone" || "$base" == "paddle" ]] && continue
+    [[ "$base" == "rclone" || "$base" == "paddle" || "$base" == "example" ]] && continue
     NAMES+=("$base")
   done
 fi
@@ -109,12 +109,12 @@ if [[ "$CMD" == "upgrade" ]]; then
   [[ -n "$REF_UPGRADE" ]] || { echo "upgrade needs --ref" >&2; exit 2; }
 fi
 if [[ ${#NAMES[@]} -eq 0 && "$CMD" != "status" ]]; then
-  echo "fetch-deps: no libraries with lock.yaml" >&2
+  echo "fetch-deps: no libraries with libpin.toml" >&2
   exit 2
 fi
 if [[ "$CMD" == "status" && ${#NAMES[@]} -eq 0 ]]; then
   for d in "$ROOT"/*/; do
-    [[ -f "${d}lock.yaml" ]] && NAMES+=("$(basename "$d")")
+    [[ -f "${d}libpin.toml" ]] && NAMES+=("$(basename "$d")")
   done
 fi
 
@@ -122,10 +122,54 @@ ve_branch() {
   git -C "$VE_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown"
 }
 
-yaml_get() {
+# Read a top-level scalar from libpin.toml (or status.local key: value).
+pin_get() {
   local file="$1" key="$2"
   [[ -r "$file" ]] || return 1
-  sed -n "s/^${key}:[[:space:]]*//p" "$file" | head -1 | sed 's/^["'\'']//;s/["'\'']$//'
+  if [[ "$file" == *.toml ]]; then
+    python3 - "$file" "$key" <<'PY'
+import sys
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib  # type: ignore
+from pathlib import Path
+data = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+key = sys.argv[2]
+v = data.get(key)
+if v is None:
+    sys.exit(1)
+if isinstance(v, bool):
+    print("true" if v else "false")
+elif isinstance(v, list):
+    # join for simple consumers; use pin_get_list for arrays
+    print("\n".join(str(x) for x in v))
+else:
+    print(v)
+PY
+  else
+    # status.local still uses simple key: value
+    sed -n "s/^${key}:[[:space:]]*//p" "$file" | head -1 | sed 's/^["'\'']//;s/["'\'']$//'
+  fi
+}
+
+# Print build steps one per line (TOML build = ["...", ...])
+pin_build_steps() {
+  local file="$1"
+  python3 - "$file" <<'PY'
+import sys
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib  # type: ignore
+from pathlib import Path
+data = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+steps = data.get("build") or ["./build"]
+if isinstance(steps, str):
+    steps = [steps]
+for s in steps:
+    print(s)
+PY
 }
 
 is_real_sha() {
@@ -150,9 +194,13 @@ local_repo_for() {
   return 1
 }
 
-lock_path() { echo "$ROOT/$1/lock.yaml"; }
+pin_path() { echo "$ROOT/$1/libpin.toml"; }
+# legacy alias during transition
+lock_path() { pin_path "$1"; }
 src_path() { echo "$ROOT/$1/src"; }
 status_path() { echo "$ROOT/$1/status.local"; }
+# alias used by older call sites
+yaml_get() { pin_get "$@"; }
 
 write_status() {
   local name="$1" mode="$2" branch="${3:-}" head="${4:-}" extra="${5:-}"
@@ -196,7 +244,7 @@ make_readonly_tree() {
 }
 
 apply_patches() {
-  local name="$1" src="$2" lock="$3"
+  local name="$1" src="$2" pin="$3"
   local pdir="$ROOT/$name/patches"
   [[ -d "$pdir" ]] || return 0
   local f
@@ -232,6 +280,15 @@ materialize_at_sha() {
   url_ssh="$(yaml_get "$(lock_path "$name")" git_ssh || true)"
   [[ "$url_https" == "null" ]] && url_https=""
   [[ "$url_ssh" == "null" ]] && url_ssh=""
+
+  # Local toy pins (seed-src, no remote) — always re-seed for a clean base before patches
+  if [[ -x "$ROOT/$name/seed-src" && -z "$url_https" && -z "$url_ssh" ]]; then
+    echo "    seed-src (no remote)"
+    ensure_writable_tree "$src"
+    rm -rf "$src"
+    ( cd "$ROOT/$name" && ./seed-src ) || return 1
+    return 0
+  fi
 
   ensure_writable_tree "$src"
 
@@ -309,7 +366,7 @@ materialize_at_sha() {
 
 resolve_pin_sha() {
   local name="$1" lock sha
-  lock="$(lock_path "$name")"
+  pin="$(lock_path "$name")"
   sha="$(yaml_get "$lock" git_sha || true)"
   if is_real_sha "$sha"; then
     RESOLVED_SHA="$sha"
@@ -329,18 +386,26 @@ resolve_pin_sha() {
   return 1
 }
 
-write_lock_sha() {
-  local lock="$1" sha="$2" describe="$3" tmp
-  tmp="$(mktemp "${lock}.XXXXXX")"
-  awk -v sha="$sha" -v desc="$describe" '
-    /^git_sha:/ { print "git_sha: \"" sha "\""; next }
-    /^git_describe:/ { print "git_describe: \"" desc "\""; next }
-    { print }
-  ' "$lock" >"$tmp"
-  chmod 664 "$tmp"; chgrp ai-code "$tmp" 2>/dev/null || true
-  mv -f "$tmp" "$lock"
-  chmod 664 "$lock"; chgrp ai-code "$lock" 2>/dev/null || true
+write_pin_sha() {
+  local pin="$1" sha="$2" describe="$3"
+  python3 - "$pin" "$sha" "$describe" <<'PY'
+import sys
+from pathlib import Path
+path, sha, desc = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+text = path.read_text(encoding="utf-8")
+import re
+text2, n1 = re.subn(r'(?m)^git_sha\s*=\s*".*"', f'git_sha = "{sha}"', text, count=1)
+text2, n2 = re.subn(r'(?m)^git_describe\s*=\s*".*"', f'git_describe = "{desc}"', text2, count=1)
+if n1 == 0:
+    text2 = f'git_sha = "{sha}"\n' + text2
+if n2 == 0:
+    text2 = text2.replace(f'git_sha = "{sha}"', f'git_sha = "{sha}"\ngit_describe = "{desc}"', 1)
+path.write_text(text2)
+PY
+  chmod 664 "$pin" 2>/dev/null || true
+  chgrp ai-code "$pin" 2>/dev/null || true
 }
+write_lock_sha() { write_pin_sha "$@"; }
 
 offer_mainish_retarget() {
   local name="$1" sha="$2" src host
@@ -361,23 +426,23 @@ offer_mainish_retarget() {
   done <<< "$lines"
   if [[ ${#mainish[@]} -gt 0 ]]; then
     echo "    note: pin $sha is reachable from main-ish branch(es): ${mainish[*]}"
-    echo "    offer: if this was a feature branch pin that merged, update lock track_branch to a main-ish name (not automatic)."
+    echo "    offer: if this was a feature branch pin that merged, update libpin.toml track_branch to a main-ish name (not automatic)."
   fi
 }
 
 cmd_ro() {
   local name="$1"
   local lock src sha
-  lock="$(lock_path "$name")"
+  pin="$(lock_path "$name")"
   src="$(src_path "$name")"
-  [[ -f "$lock" ]] || { echo "FAIL $name: no lock" >&2; return 1; }
-  [[ -r "$lock" ]] || { echo "FAIL $name: cannot read lock" >&2; return 1; }
+  [[ -f "$lock" ]] || { echo "FAIL $name: no libpin.toml" >&2; return 1; }
+  [[ -r "$lock" ]] || { echo "FAIL $name: cannot read libpin.toml" >&2; return 1; }
   echo "==> $name  mode=ro  GIT_HOME=$GIT_HOME"
   if ! resolve_pin_sha "$name"; then
     if [[ -x "$ROOT/$name/seed-src" ]]; then
       RESOLVED_SHA="seed"
     else
-      echo "    FAIL: no git_sha in lock and no local host" >&2
+      echo "    FAIL: no git_sha in libpin.toml and no local host" >&2
       return 1
     fi
   fi
@@ -387,7 +452,7 @@ cmd_ro() {
   ensure_writable_tree "$src"
   if ! apply_patches "$name" "$src" "$lock"; then return 1; fi
   local need_rw
-  need_rw="$(yaml_get "$lock" requires_writable_src 2>/dev/null || echo false)"
+  need_rw="$(pin_get "$lock" requires_writable_src 2>/dev/null || echo false)"
   if [[ "$need_rw" == "true" || "$need_rw" == "yes" || "$need_rw" == "1" ]]; then
     write_status "$name" "ro" "" "$sha" "readonly: false  # requires_writable_src"
     echo "    WRITABLE SRC (requires_writable_src)"
@@ -403,13 +468,13 @@ cmd_ro() {
 cmd_rw() {
   local name="$1"
   local lock src sha branch base host
-  lock="$(lock_path "$name")"
+  pin="$(lock_path "$name")"
   src="$(src_path "$name")"
   branch="${BRANCH_OVERRIDE:-$(ve_branch)}"
   [[ "$branch" != "HEAD" && -n "$branch" ]] || branch="work"
   echo "==> $name  mode=rw  branch=$branch  GIT_HOME=$GIT_HOME"
   if ! resolve_pin_sha "$name"; then
-    echo "    FAIL: need lock sha or local host for base" >&2
+    echo "    FAIL: need pin sha or local host for base" >&2
     return 1
   fi
   base="${BASE_REF:-$RESOLVED_SHA}"
@@ -458,7 +523,7 @@ cmd_rw() {
 cmd_status() {
   local name="$1"
   local lock src sp mode head locksha
-  lock="$(lock_path "$name")"
+  pin="$(lock_path "$name")"
   src="$(src_path "$name")"
   sp="$(status_path "$name")"
   locksha="$(yaml_get "$lock" git_sha 2>/dev/null || echo "?")"
@@ -473,7 +538,7 @@ cmd_status() {
   if [[ -d "$src/.git" || -f "$src/.git" ]]; then
     if [[ -n "$(git -C "$src" status --porcelain 2>/dev/null)" ]]; then dirty="Y"; fi
   fi
-  echo "$name: mode=$mode head=$head lock=${locksha:0:12}… dirty=$dirty"
+  echo "$name: mode=$mode head=$head pin=${locksha:0:12}… dirty=$dirty"
   if [[ "$VERBOSE" -ge 1 ]]; then
     [[ -f "$sp" ]] && sed 's/^/  /' "$sp"
     if [[ "$dirty" == "Y" ]]; then
@@ -515,39 +580,32 @@ cmd_build() {
   local name="$1"
   local dir="$ROOT/$name"
   local lock src
-  lock="$(lock_path "$name")"
+  pin="$(lock_path "$name")"
   src="$(src_path "$name")"
   echo "==> $name  build"
   if [[ ! -d "$src" ]]; then
     echo "    FAIL: no src — run fetch-deps first" >&2
     return 1
   fi
-  # Prefer RO sources: only unlock whole tree if lock requires it.
+  # Prefer RO sources: only unlock whole tree if pin requires it.
   local need_rw
-  need_rw="$(yaml_get "$lock" requires_writable_src 2>/dev/null || echo false)"
+  need_rw="$(pin_get "$lock" requires_writable_src 2>/dev/null || echo false)"
   if [[ "$need_rw" == "true" || "$need_rw" == "yes" || "$need_rw" == "1" ]]; then
     ensure_writable_tree "$src"
   fi
-  # Run build entries from lock (build: list) or default ./build
-  local ran=0
-  if grep -q '^build:' "$lock" 2>/dev/null; then
-    local bline bcmd
-    while IFS= read -r bline; do
-      [[ "$bline" =~ ^[[:space:]]*-[[:space:]]*(.*) ]] || continue
-      bcmd="${BASH_REMATCH[1]}"
-      bcmd="${bcmd//\"/}"
-      bcmd="${bcmd//\'/}"
-      [[ -z "$bcmd" ]] && continue
-      echo "    run $bcmd"
-      ( cd "$dir" && eval "$bcmd" ) || { echo "    FAIL build: $bcmd" >&2; return 1; }
-      ran=1
-    done < <(awk '/^build:/{f=1;next} f&&/^[^[:space:]-]/{exit} f&&/^-/{print}' "$lock")
-  fi
+  # Run build[] steps from libpin.toml
+  local ran=0 bcmd
+  while IFS= read -r bcmd; do
+    [[ -z "$bcmd" ]] && continue
+    echo "    run $bcmd"
+    ( cd "$dir" && eval "$bcmd" ) || { echo "    FAIL build: $bcmd" >&2; return 1; }
+    ran=1
+  done < <(pin_build_steps "$lock")
   if [[ "$ran" -eq 0 ]]; then
     if [[ -x "$dir/build" ]]; then
       ( cd "$dir" && ./build ) || { echo "    FAIL build" >&2; return 1; }
     else
-      echo "    no ./build — skip exec"
+      echo "    no build steps — skip exec"
     fi
   fi
   # Collect stable artifacts (normative)
@@ -589,7 +647,7 @@ cmd_upgrade() {
   apply_patches "$name" "$src" "$(lock_path "$name")" || true
   cmd_build "$name" || true
   write_lock_sha "$(lock_path "$name")" "$sha" "$(git -C "$src" describe --tags --long --always HEAD 2>/dev/null || echo "$sha")"
-  echo "    upgraded lock to $sha — review artifact/ and commit on VE"
+  echo "    upgraded pin to $sha — review artifact/ and commit on VE"
   echo "    OK upgrade $name"
 }
 

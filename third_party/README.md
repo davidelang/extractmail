@@ -15,7 +15,7 @@
 ./third_party/fetch-deps ro opencv          # materialize src @ lock SHA, apply patches, sources RO
 ./third_party/fetch-deps build opencv       # run build script(s), then collect → artifact/
 # or, when iterating a build only:
-./third_party/get-artifacts opencv          # copy from src build outputs → artifact/ using lock.yaml
+./third_party/get-artifacts opencv          # copy from src build outputs → artifact/ using libpin.toml
 ```
 
 Same pattern for `remotetable`, `extractmail`, `rclone`, `paddle` (when pins are real).
@@ -26,7 +26,7 @@ Same pattern for `remotetable`, `extractmail`, `rclone`, `paddle` (when pins are
 | 2. Build | `./build` (or scripts listed in lock) | Create/chmod **writable** `src/build`, `src/bin` (or upstream-equivalent dirs); compile; leave products under `src/…` |
 | 3. Collect | `get-artifacts` (called by `fetch-deps build`) | Copy products into **stable** `artifact/` names using lock |
 
-**Committed pin surface for the app:** `lock.yaml` + `artifact/*` (+ build scripts + patches).  
+**Committed pin surface for the app:** `libpin.toml` + `artifact/*` (+ build scripts + patches).  
 **Not committed on a fresh clone:** usually `src/` contents (materialize with fetch-deps). `src` must still be a **real git checkout** when present (submodule, worktree, or clone) so `git status` works.
 
 ---
@@ -35,7 +35,7 @@ Same pattern for `remotetable`, `extractmail`, `rclone`, `paddle` (when pins are
 
 ```text
 third_party/<lib>/
-  lock.yaml       # pin identity + artifacts + build_time + reproducible?
+  libpin.toml       # pin identity + [[artifact]] + build_time + reproducible?
   SOURCE.md       # human narrative (profiles, gotchas)
   patches/        # optional; applied only by fetch-deps
   build           # executable entry (may call scripts/)

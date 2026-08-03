@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# get-artifacts — copy build products into stable artifact/ paths using lock.yaml
+# get-artifacts — copy build products into stable artifact/ paths using libpin.toml
 #
 # Usage:
 #   third_party/get-artifacts [NAME…]
@@ -16,14 +16,13 @@ usage() {
   cat <<'EOF'
 Usage: third_party/get-artifacts [NAME…]
 
-For each library with lock.yaml, copy build outputs into stable artifact/ paths.
+For each library with libpin.toml, copy build outputs into stable artifact/ paths.
 
-Lock fields (per artifacts[] entry):
-  path:   destination under third_party/<lib>/ (e.g. artifact/foo.so)
-  from:   source path or glob under third_party/<lib>/ (e.g. src/bin/**/foo.so)
-  from_src: legacy — path relative to src/ only
-  pick:   newest (mtime, default for globs) | sort | sort-n
-          smart — reserved (version tiers; not implemented yet)
+libpin.toml [[artifact]] fields:
+  path   destination under third_party/<lib>/ (e.g. artifact/foo.so)
+  from   source path or glob under third_party/<lib>/ (e.g. src/bin/hello-*.bin)
+  pick   newest (mtime, default for globs) | sort | sort-n
+         smart — reserved (version tiers; not implemented yet)
 
 If from is not a glob, pick is ignored.
 EOF
@@ -38,55 +37,33 @@ done
 
 if [[ ${#NAMES[@]} -eq 0 ]]; then
   for d in "$ROOT"/*/; do
-    [[ -f "${d}lock.yaml" ]] || continue
+    [[ -f "${d}libpin.toml" ]] || continue
     base="$(basename "$d")"
     [[ "$base" == "example" ]] && continue
     NAMES+=("$base")
   done
 fi
 
-# Collect artifact entries as lines: path<TAB>from<TAB>pick
+# Lines: path<TAB>from<TAB>pick
 parse_artifacts() {
-  local lock="$1"
-  python3 - "$lock" <<'PY'
-import re, sys
+  local pin="$1"
+  python3 - "$pin" <<'PY'
+import sys
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib  # type: ignore
 from pathlib import Path
-text = Path(sys.argv[1]).read_text(encoding="utf-8")
-entries = []
-cur = None
-in_art = False
-for line in text.splitlines():
-    if re.match(r"^artifacts\s*:", line):
-        in_art = True
-        continue
-    if not in_art:
-        continue
-    if re.match(r"^[a-zA-Z_]", line):
-        break
-    m = re.match(r'^\s*-\s+path:\s*["\']?([^"\']+)["\']?\s*$', line)
-    if m:
-        if cur and cur.get("path"):
-            entries.append(cur)
-        cur = {"path": m.group(1).strip(), "from": "", "pick": "newest"}
-        continue
-    if cur is None:
-        continue
-    m = re.match(r'^\s+from:\s*["\']?([^"\']+)["\']?\s*$', line)
-    if m:
-        cur["from"] = m.group(1).strip()
-        continue
-    m = re.match(r'^\s+from_src:\s*["\']?([^"\']+)["\']?\s*$', line)
-    if m:
-        cur["from"] = "src/" + m.group(1).strip().lstrip("/")
-        continue
-    m = re.match(r'^\s+pick:\s*["\']?([^"\']+)["\']?\s*$', line)
-    if m:
-        cur["pick"] = m.group(1).strip()
-        continue
-if cur and cur.get("path"):
-    entries.append(cur)
+data = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+# TOML uses [[artifact]] (singular table name) → key "artifact" list of tables
+entries = data.get("artifact") or data.get("artifacts") or []
 for e in entries:
-    print(f"{e.get('path','')}\t{e.get('from','')}\t{e.get('pick','newest')}")
+    path = e.get("path") or ""
+    frm = e.get("from") or ""
+    if not frm and e.get("from_src"):
+        frm = "src/" + str(e["from_src"]).lstrip("/")
+    pick = e.get("pick") or "newest"
+    print(f"{path}\t{frm}\t{pick}")
 PY
 }
 
@@ -111,7 +88,6 @@ pick_file() {
       echo "get-artifacts: pick=smart not implemented yet; using newest (mtime)" >&2
       ;&
     newest|*)
-      # newest by mtime
       local f best="" best_t=0 t
       for f in "${files[@]}"; do
         t=$(stat -c %Y "$f" 2>/dev/null || echo 0)
@@ -128,23 +104,21 @@ pick_file() {
 collect_one() {
   local name="$1"
   local dir="$ROOT/$name"
-  local lock="$dir/lock.yaml"
-  [[ -f "$lock" ]] || { echo "FAIL $name: no lock.yaml" >&2; return 1; }
+  local pin="$dir/libpin.toml"
+  [[ -f "$pin" ]] || { echo "FAIL $name: no libpin.toml" >&2; return 1; }
   echo "==> $name  get-artifacts"
-  local line path from pick src_path matches m chosen
+  local path from pick matches m chosen
   local any=0
   while IFS=$'\t' read -r path from pick; do
     [[ -z "$path" ]] && continue
     any=1
     [[ -z "$pick" ]] && pick=newest
     if [[ -z "$from" ]]; then
-      echo "    WARN: $path has no from/from_src — skip" >&2
+      echo "    WARN: $path has no from — skip" >&2
       continue
     fi
-    # Resolve matches under $dir
     matches=()
     if is_glob "$from"; then
-      # enable globstar
       shopt -s globstar nullglob
       # shellcheck disable=SC2206
       local expanded=( "$dir"/$from )
@@ -152,12 +126,7 @@ collect_one() {
       for m in "${expanded[@]}"; do
         [[ -f "$m" ]] && matches+=("$m")
       done
-      # also try find-like with ** if bash glob failed
       if [[ ${#matches[@]} -eq 0 ]]; then
-        while IFS= read -r m; do
-          [[ -n "$m" ]] && matches+=("$m")
-        done < <(find "$dir" -type f -path "$dir/${from//\*\*/\*}" 2>/dev/null | head -50)
-        # simpler: use find -name of basename pattern
         local basepat
         basepat="$(basename "$from")"
         while IFS= read -r m; do
@@ -167,8 +136,6 @@ collect_one() {
     else
       if [[ -f "$dir/$from" ]]; then
         matches+=("$dir/$from")
-      elif [[ -f "$from" ]]; then
-        matches+=("$from")
       fi
     fi
     if [[ ${#matches[@]} -eq 0 ]]; then
@@ -179,11 +146,10 @@ collect_one() {
     mkdir -p "$(dirname "$dir/$path")"
     cp -a "$chosen" "$dir/$path"
     echo "    $chosen → $path"
-  done < <(parse_artifacts "$lock")
+  done < <(parse_artifacts "$pin")
 
   if [[ "$any" -eq 0 ]]; then
-    # legacy: path + from_src sequential (handled by empty parse) — try simple from_src lines
-    echo "    (no artifacts[] entries parsed — nothing to copy)"
+    echo "    (no [[artifact]] entries — nothing to copy)"
   fi
   echo "    OK get-artifacts $name"
 }
