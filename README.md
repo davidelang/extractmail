@@ -39,10 +39,14 @@ Not a full spreadsheet sync engine. Cursor state only (e.g. last Message-ID / UI
 scripts/extractmail --list-types
 cat fixtures/shell-receipt1.html | scripts/extractmail --type shell-ereceipt
 python3 python/run_goldens.py          # offline goldens + external contract 0/1/2
+scripts/export_offline_goldens.sh /tmp/ve-email-goldens   # copy expected JSON for VE assets
 ```
 
-Type keys load from `extractors/*.yaml` (detect/reject metadata + `impl`/`module` pointers).  
-SoT extract implementation remains **reference-js** under `extractors/reference-js/` until native ports land.
+Type keys load from `extractors/*.yaml`. Dispatch uses YAML `impl` / `module` / `export`
+(reference-js Node entry). `auto` uses `receipt-parsers.js` tryParse.
+
+**Offline VE packaging:** ship `fixtures/expected-*.json` as app assets (no Node on device).
+HTML samples optional for human comparison only.
 
 ## Apps Script
 

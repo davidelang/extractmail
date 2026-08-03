@@ -35,3 +35,8 @@ Append-only activity log for this subproject.
 - type_registry from extractors/*.yaml; extractmail_stdin loads types
 - scripts/extractmail wrapper; run_external_contract 0/1/2 in goldens
 - AAR VERSION=2 + TYPE_* constants (host CLI extract only)
+
+## 2026-08-02 - M2.5 YAML impl dispatch + offline golden export
+
+- extractmail_stdin dispatches via YAML module/export (no type if-chain)
+- scripts/export_offline_goldens.sh for VE assets packaging
