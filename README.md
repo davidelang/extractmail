@@ -33,9 +33,21 @@ Not a full spreadsheet sync engine. Cursor state only (e.g. last Message-ID / UI
 - **External (required on Linux/OpenWrt v1):** stdin body → stdout JSON → exit code; always include `_meta` (at least `fields` count).
 - Prefer thin wrappers around existing HTML selector libraries, not a new full language.
 
+## CLI (host)
+
+```bash
+scripts/extractmail --list-types
+cat fixtures/shell-receipt1.html | scripts/extractmail --type shell-ereceipt
+python3 python/run_goldens.py          # offline goldens + external contract 0/1/2
+```
+
+Type keys load from `extractors/*.yaml` (detect/reject metadata + `impl`/`module` pointers).  
+SoT extract implementation remains **reference-js** under `extractors/reference-js/` until native ports land.
+
 ## Apps Script
 
-Kept for **zero-binary Gmail→Sheets**. Must use the **same configs/fixtures** as native extractors (tested in this repo).
+Kept for **zero-binary Gmail→Sheets**. Must use the **same configs/fixtures** as native extractors
+(same expected numbers as `fixtures/expected-*.json`; Apps Script not required for CI).
 
 ## VehicleExpenses
 

@@ -66,6 +66,15 @@ def main() -> int:
     code, _ = run(["--type", "shell-ereceipt"], sams.read_bytes())
     assert code == 1, f"sams-as-shell should exit 1, got {code}"
     print("PASS cross-reject sams-as-shell")
+    # external contract exits
+    ext = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve().parent / "run_external_contract.py")],
+        capture_output=True,
+        text=True,
+    )
+    if ext.returncode != 0:
+        raise AssertionError(ext.stdout + ext.stderr)
+    print(ext.stdout.strip())
     print("PASS all extractmail goldens")
     return 0
 

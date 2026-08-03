@@ -1,12 +1,21 @@
 package com.davidelang.extractmail
 
 /**
- * Android surface for extractmail M1.
- * Full HTML extractors: reference-js / stdin CLI on host.
- * AAR ships stable package surface for VE thin consumers.
+ * Android surface for extractmail (M2).
+ * Full HTML extract: host CLI (`scripts/extractmail` / `python/extractmail_stdin.py`).
+ * AAR ships stable types/constants for VE thin consumers — no on-device HTML parse.
  */
 object Extractmail {
-    const val VERSION = 1
+    const val VERSION = 2
+    const val TYPE_SHELL = "shell-ereceipt"
+    const val TYPE_SAMS_CLUB = "samsclub-fuel"
+    const val TYPE_AUTO = "auto"
+
+    val KNOWN_TYPES: List<String> = listOf(TYPE_SHELL, TYPE_SAMS_CLUB)
+
     fun hostCliHint(): String =
-        "python3 python/extractmail_stdin.py --type auto < body.html"
+        "scripts/extractmail --type auto < body.html"
+
+    fun hostCliForType(typeKey: String): String =
+        "scripts/extractmail --type $typeKey < body.html"
 }

@@ -29,3 +29,9 @@ Append-only activity log for this subproject.
 
 - android/ library module extractmail.aar API surface
 
+
+## 2026-08-02 - M2 YAML type registry + CLI wrapper + external contract
+
+- type_registry from extractors/*.yaml; extractmail_stdin loads types
+- scripts/extractmail wrapper; run_external_contract 0/1/2 in goldens
+- AAR VERSION=2 + TYPE_* constants (host CLI extract only)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-extractmail stdin path (M1) — reference-js via Node.
+extractmail stdin path — reference-js via Node; type keys from extractors/*.yaml.
 
 Usage:
   cat fixtures/shell-receipt1.html | python3 python/extractmail_stdin.py --type shell-ereceipt
@@ -19,6 +19,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REF_JS = ROOT / "extractors" / "reference-js"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from type_registry import known_types, load_type_registry, resolve_impl  # noqa: E402
 
 
 def run_node(
@@ -64,6 +66,7 @@ const out = {{
     fields: 0,
     extractor: t === 'auto' || !t ? (parsed.brand || 'auto') : t,
     version: 1,
+    type: t || 'auto',
   }},
 }};
 const keys = Object.keys(out).filter(k => k !== '_meta' && out[k] !== undefined && out[k] !== null && out[k] !== '');
@@ -85,11 +88,27 @@ process.stdout.write(JSON.stringify(out) + '\\n');
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="extractmail stdin → JSON")
-    ap.add_argument("--type", default="auto", help="shell-ereceipt | samsclub-fuel | auto")
+    ap.add_argument(
+        "--type",
+        default="auto",
+        help="type key from extractors/*.yaml, or auto",
+    )
+    ap.add_argument("--list-types", action="store_true", help="print known YAML types and exit")
     ap.add_argument("--date-header", default=None, help="RFC822 Date (required for Sam's)")
     ap.add_argument("--from", dest="from_header", default=None)
     ap.add_argument("--subject", default=None)
     args = ap.parse_args()
+
+    if args.list_types:
+        for t in known_types():
+            meta = load_type_registry()[t]
+            print(f"{t}\timpl={meta.get('impl')}\tbrand={meta.get('brand')}")
+        return 0
+
+    if args.type not in ("auto",) and resolve_impl(args.type) is None:
+        sys.stderr.write(f"unknown type {args.type!r}; known: {', '.join(known_types())}\n")
+        return 2
+
     html = sys.stdin.read()
     if not html.strip():
         sys.stderr.write("empty stdin\n")
@@ -103,6 +122,15 @@ def main() -> int:
         return 2
     if out is None:
         return 1
+    # Enrich brand/type from YAML when missing
+    reg = resolve_impl(args.type)
+    if reg and out.get("brand") is None and reg.get("brand"):
+        out["brand"] = reg["brand"]
+    if out.get("_meta") is None:
+        out["_meta"] = {"fields": 0}
+    out["_meta"]["type"] = args.type
+    if reg and reg.get("brand"):
+        out["_meta"]["brand"] = reg["brand"]
     print(json.dumps(out, indent=2))
     return 0
 
