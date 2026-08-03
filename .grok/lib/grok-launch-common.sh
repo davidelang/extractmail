@@ -25,18 +25,46 @@ if [[ -f "$SCRIPT_DIR/project.config" ]]; then
     [[ "$line" =~ ^[a-zA-Z_][a-zA-Z0-9_]*= ]] || continue
     # shellcheck disable=SC2163
     export "$line"
-  done <"$SCRIPT_DIR/project.config"
+  done <"$SCRIPT_DIR/project.config" || true
 fi
 
-GROK_BIN="${GROK_BIN:-${grok_bin:-$HOME/git/grok/bin/grok}}"
+# Prefer explicit GROK_BIN, then project.config keys (VE uses grok_bin_default).
+# project.config often has grok_bin_default=$HOME/git/grok/bin/grok as *literal*
+# text — expand $HOME/… after load (export "$line" does not re-expand).
+_expand_path() {
+  local p="$1"
+  p="${p/#\~/$HOME}"
+  # Only expand a leading $HOME/ for safety (no general eval of config).
+  if [[ "$p" == '$HOME/'* ]]; then
+    p="${HOME}/${p#\$HOME/}"
+  elif [[ "$p" == "\$HOME/"* ]]; then
+    p="${HOME}/${p#\\\$HOME/}"
+  fi
+  # If still contains literal $HOME as prefix from unexpanded export:
+  case "$p" in
+    '$HOME'/*) p="${HOME}/${p#\$HOME/}" ;;
+  esac
+  printf '%s' "$p"
+}
+_raw_bin="${GROK_BIN:-${grok_bin:-${grok_bin_default:-$HOME/git/grok/bin/grok}}}"
+GROK_BIN="$(_expand_path "$_raw_bin")"
+# If still looks like unexpanded $HOME...
+if [[ "$GROK_BIN" == *'$HOME'* ]]; then
+  GROK_BIN="${GROK_BIN//\$HOME/$HOME}"
+fi
 
 # Prefer sandbox_dir; accept legacy sandbox_path (VE filters/example).
 SANDBOX_REL="${sandbox_dir:-${sandbox_path:-}}"
 if [[ -z "$SANDBOX_REL" ]]; then
-  if [[ -d "$SCRIPT_DIR/dev-ai-interaction" ]]; then
+  if [[ -d "$SCRIPT_DIR/dev-ai-interaction" || -L "$SCRIPT_DIR/dev-ai-interaction" ]]; then
     SANDBOX_REL="dev-ai-interaction"
-  elif [[ -d "$SCRIPT_DIR/sandbox" ]]; then
+  elif [[ -d "$SCRIPT_DIR/sandbox" || -L "$SCRIPT_DIR/sandbox" ]]; then
     SANDBOX_REL="sandbox"
+  elif [[ -d "$SCRIPT_DIR/../dev-ai-interaction" ]]; then
+    # Launcher lives in a worktree; monorepo sandbox is one level up (VE layout).
+    SANDBOX_REL="../dev-ai-interaction"
+  elif [[ -d "$SCRIPT_DIR/../sandbox" ]]; then
+    SANDBOX_REL="../sandbox"
   else
     SANDBOX_REL="sandbox"
   fi
@@ -46,6 +74,8 @@ if [[ "$SANDBOX_REL" = /* ]]; then
 else
   SANDBOX_DIR="$SCRIPT_DIR/$SANDBOX_REL"
 fi
+# Normalize .. in path
+SANDBOX_DIR="$(cd "$SANDBOX_DIR" 2>/dev/null && pwd || echo "$SANDBOX_DIR")"
 
 COMPOSE="${SCRIPT_DIR}/.grok/prompts/compose-session-prompt.sh"
 if [[ ! -f "$COMPOSE" ]]; then
@@ -123,10 +153,12 @@ resolve_run_user() {
 build_model_args() {
   MODEL_ARGS=()
   if [[ -n "${FORCE_MODEL:-}" ]]; then
-    MODEL_ARGS=(--model "$FORCE_MODEL"); return
+    MODEL_ARGS=(--model "$FORCE_MODEL")
+    return 0
   fi
   if [[ -n "${GROK_FORCE_MODEL:-}" ]]; then
-    MODEL_ARGS=(--model "$GROK_FORCE_MODEL"); return
+    MODEL_ARGS=(--model "$GROK_FORCE_MODEL")
+    return 0
   fi
   local v=""
   case "${ROLE_KEY:-}" in
@@ -136,7 +168,12 @@ build_model_args() {
     orchestrator) v="${orchestrator_model:-}" ;;
     primary) v="${primary_model:-}" ;;
   esac
-  [[ -n "$v" ]] && MODEL_ARGS=(--model "$v")
+  # IMPORTANT: with set -e, a failing `[[ ]] && cmd` as the last statement of a
+  # function returns non-zero and aborts the launcher silently. Always return 0.
+  if [[ -n "$v" ]]; then
+    MODEL_ARGS=(--model "$v")
+  fi
+  return 0
 }
 
 build_todo_gate_flags() {
@@ -144,6 +181,7 @@ build_todo_gate_flags() {
   if [[ "${GROK_TODO_GATE:-0}" = "1" || "${GROK_TODO_GATE:-0}" = "true" ]]; then
     TODO_GATE_FLAGS=(--todo-gate)
   fi
+  return 0
 }
 
 collect_extra_args() {
@@ -202,17 +240,28 @@ launch_grok_with_prompt() {
   build_model_args
   build_todo_gate_flags
 
+  if [[ ! -x "$GROK_BIN" && ! -f "$GROK_BIN" ]]; then
+    echo "ERROR: grok binary not found or not executable: $GROK_BIN" >&2
+    echo "Set GROK_BIN or grok_bin / grok_bin_default in project.config" >&2
+    exit 1
+  fi
+
   echo "Launching Grok role=${ROLE_KEY:-?} root=$SCRIPT_DIR"
   echo "Grok binary: $GROK_BIN"
   echo "Sandbox: $SANDBOX_DIR"
   echo "Running as: $run_user"
-  [[ -n "${PROMPT_FILE:-}" ]] && echo "Prompt file: $PROMPT_FILE"
+  if [[ -n "${PROMPT_FILE:-}" ]]; then
+    echo "Prompt file: $PROMPT_FILE"
+  fi
   if [[ ${#PACK_PATHS[@]} -gt 0 ]]; then
     echo "Prompt pack: ${PACK_PATHS[*]}"
   fi
-  [[ -n "$ANDROID_SHARED" ]] && echo "ANDROID_USER_HOME: $ANDROID_SHARED"
+  if [[ -n "$ANDROID_SHARED" ]]; then
+    echo "ANDROID_USER_HOME: $ANDROID_SHARED"
+  fi
   echo "Tip: Ctrl+M or /multiline for multi-line input."
 
+  # shellcheck disable=SC2086
   exec sudo -u "$run_user" -- env \
     ${ANDROID_SHARED:+ANDROID_USER_HOME="$ANDROID_SHARED"} \
     GROK_PROMPT_ROOT="$SCRIPT_DIR" \
