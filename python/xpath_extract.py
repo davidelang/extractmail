@@ -93,8 +93,17 @@ def extract_field(html: str, field_cfg: dict[str, Any], headers: dict[str, str] 
     label = selector.strip("/[]@=.\"' ")
     if not label:
         return None
+    # Prefer volume patterns when the label looks like gallons
+    if re.search(r"gal", label, flags=re.I):
+        gal = re.search(
+            re.escape(label) + r".{0,80}?(\d+(?:\.\d+)?)\s*(?:gal|gallon)?",
+            text,
+            flags=re.I | re.S,
+        )
+        if gal:
+            return gal.group(1)
     money = re.search(
-        re.escape(label) + r".{0,80}?(\$?\s*\d{1,3}(?:,\d{3})*(?:\.\d{2})?)",
+        re.escape(label) + r".{0,80}?(\$?\s*\d{1,3}(?:,\d{3})*(?:\.\d{1,3})?)",
         text,
         flags=re.I | re.S,
     )
@@ -107,7 +116,6 @@ def extract_field(html: str, field_cfg: dict[str, Any], headers: dict[str, str] 
     )
     if gal:
         return gal.group(1)
-    # bare number after label
     num = re.search(
         re.escape(label) + r".{0,40}?(\d+(?:\.\d+)?)",
         text,
