@@ -1,0 +1,3 @@
+Copied from VehicleExpenses third_party pin tooling (not a live nested git).
+Update by re-copying when fetch-deps/get-artifacts/docs change.
+See docs/THIRD_PARTY_PIN_BUILDS.md and README.md here.
