@@ -15,6 +15,12 @@ FILES=(
   filter-apply-config filter-clean-config
   setup_agent.sh remove_worktree.sh update-rules.sh
   project.config.example merge-branch-into-master.sh checkifclean
+  setup-project
+  landlock.config
+  landlock.config.example
+  run-antigravity
+  run-antigravity-master
+  run-antigravity-planner
 )
 
 sync_one() {

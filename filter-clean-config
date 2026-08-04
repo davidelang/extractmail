@@ -2,8 +2,13 @@
 # filter-clean-config
 # Git clean filter for manage-configs.
 # Scrubs real values back to @@TOKEN@@ on git add.
-# Supports shell (VAR= aware), toml, md/text (dumb token replace).
-# Run: git config filter.manage-configs.clean './filter-clean-config'
+# - Shell-like files:
+#     1) LHS assignment scrub (var=real → var=@@TOKEN@@)
+#     2) free-form scrub for path-like config values only (contain / or $)
+#        so comments that smudge rewrote (e.g. @@GIT_HOME@@ → /home/you/git)
+#        are restored without turning short fallbacks (ai-planner) into tokens.
+# - Other files (toml/md/text): dumb value→token replace (longer values first).
+# Run: git config filter.manage-configs.clean 'bash ./filter-clean-config %f'
 
 set -euo pipefail
 
@@ -33,44 +38,82 @@ declare -A TOKENS=(
   [sandbox_group]="@@SANDBOX_GROUP@@"
   [shared_group]="@@SHARED_GROUP@@"
   [grok_bin_default]="@@GROK_BIN_DEFAULT@@"
+  [gemini_bin_default]="@@GEMINI_BIN_DEFAULT@@"
+  [git_home]="@@GIT_HOME@@"
+  [primary_user]="@@PRIMARY_USER@@"
+  [antigravity_bin]="@@ANTIGRAVITY_BIN@@"
 )
 
 # For shell files: scrub VAR=real back to VAR=@@TOKEN@@
-# Uses grep to find assignments, then sed.
-scrub_shell() {
-  local content
-  content=$(cat)
+scrub_shell_assignments() {
+  local content="$1"
+  local var token
   for var in "${!TOKENS[@]}"; do
     token="${TOKENS[$var]}"
-    # Look for VAR=... or VAR="..." etc, replace value with token
-    # Key off LHS as per requirements
-    content=$(echo "$content" | sed -E "s/^([[:space:]]*(export[[:space:]]+)?${var}[[:space:]]*)=.*/\1=${token}/")
+    content=$(printf '%s\n' "$content" | sed -E "s/^([[:space:]]*(export[[:space:]]+)?${var}[[:space:]]*)=.*/\1=${token}/")
   done
-  echo "$content"
+  printf '%s' "$content"
 }
 
-# For other files (toml, md, text): dumb string replace of known values with tokens
-scrub_text() {
-  local content
-  content=$(cat)
+# Free-form value→token. If path_only=1, only values containing / or $.
+scrub_values() {
+  local content="$1"
+  local path_only="${2:-0}"
+  local var token confvar val
+  local -a pairs=()
+  local i
+
   for var in "${!TOKENS[@]}"; do
     token="${TOKENS[$var]}"
     confvar="CONF_${var^^}"
     val="${!confvar:-}"
-    if [ -n "$val" ]; then
-      content="${content//"$val"/$token}"
+    [ -n "$val" ] || continue
+    if [ "$path_only" = "1" ]; then
+      # Skip short names/groups/sandbox dirnames used as intentional fallbacks
+      if [[ "$val" != */* && "$val" != *'$'* ]]; then
+        continue
+      fi
     fi
+    pairs+=("${#val}|${val}|${token}")
   done
-  echo "$content"
+
+  if [ "${#pairs[@]}" -eq 0 ]; then
+    printf '%s' "$content"
+    return
+  fi
+
+  IFS=$'\n' pairs=($(printf '%s\n' "${pairs[@]}" | sort -t'|' -k1,1nr))
+  unset IFS
+
+  for i in "${pairs[@]}"; do
+    val="${i#*|}"
+    token="${val#*|}"
+    val="${val%%|*}"
+    content="${content//"$val"/$token}"
+  done
+  printf '%s' "$content"
 }
 
-# Detect type
 filename="${1:-}"
-if [[ "$filename" == *.sh || "$filename" == *run-grok* || "$filename" == *setup* || "$filename" == *filter* || "$filename" == *set-* ]]; then
-  scrub_shell
-else
-  scrub_text
-fi
+content=$(cat)
 
-# Note on smart: future could diff vs HEAD to only scrub changed sections.
-# See execution log for details.
+if [[ "$filename" == *.sh \
+   || "$filename" == *run-grok* \
+   || "$filename" == *run-antigravity* \
+   || "$filename" == *setup* \
+   || "$filename" == *filter* \
+   || "$filename" == *set-* \
+   || "$filename" == *fetch-deps* \
+   || "$filename" == *get-artifacts* \
+   || "$filename" == *libpin* \
+   || "$filename" == *grok-launch-common* \
+   || "$filename" == *landlock.config* \
+   || -z "$filename" ]]; then
+  content=$(scrub_shell_assignments "$content")
+  # Restore path tokens that smudge rewrote inside comments/docs
+  content=$(scrub_values "$content" 1)
+  printf '%s\n' "$content"
+else
+  content=$(scrub_values "$content" 0)
+  printf '%s\n' "$content"
+fi

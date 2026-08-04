@@ -32,6 +32,12 @@ declare -A TOKENS=(
   [sandbox_group]="@@SANDBOX_GROUP@@"
   [shared_group]="@@SHARED_GROUP@@"
   [grok_bin_default]="@@GROK_BIN_DEFAULT@@"
+  [gemini_bin_default]="@@GEMINI_BIN_DEFAULT@@"
+  # Absolute path to sibling git hosts (e.g. /home/you/git). NOT ~/git —
+  # agent users have different $HOME; landlock/open need a concrete path.
+  [git_home]="@@GIT_HOME@@"
+  [primary_user]="@@PRIMARY_USER@@"
+  [antigravity_bin]="@@ANTIGRAVITY_BIN@@"
 )
 
 apply() {
