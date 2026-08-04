@@ -42,3 +42,5 @@ Append-only activity log for this subproject.
 - scripts/export_offline_goldens.sh for VE assets packaging
 
 ## 2026-08-03 - PR prepared: sandbox/PRs/PR-email-connection.md (rebase onto master; goldens+AAR OK)
+
+## 2026-08-03 - PR prepared: sandbox/PRs/PR-chore-third-party-remotetable-pin.md (third_party remotetable @ GitHub)
