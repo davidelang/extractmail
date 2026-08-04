@@ -40,3 +40,5 @@ Append-only activity log for this subproject.
 
 - extractmail_stdin dispatches via YAML module/export (no type if-chain)
 - scripts/export_offline_goldens.sh for VE assets packaging
+
+## 2026-08-03 - PR prepared: sandbox/PRs/PR-email-connection.md (rebase onto master; goldens+AAR OK)
