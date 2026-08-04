@@ -17,7 +17,3 @@ These remain relevant in VE until callers land:
 
 - Import fill data / expense receipts from email and/or file pickers  
 - Email hook (intent or similar)  
-
-# Future work
-
-M2 deferred: packaging/trainer/full format matrix / remaining backends
