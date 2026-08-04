@@ -1,0 +1,193 @@
+#!/usr/bin/env bash
+# get-artifacts — copy build products into stable artifact/ paths using libpin.toml
+#
+# Usage:
+#   third_party/get-artifacts [NAME…]
+#   third_party/get-artifacts --help
+#
+# Called by fetch-deps build; also usable alone when iterating builds.
+# When invoked for a single NAME (and not already sandboxed), re-exec under
+# bubblewrap with write access only to third_party/<NAME>/artifact/.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NAMES=()
+FAILURES=0
+NO_BWRAP=0
+
+usage() {
+  cat <<'EOF'
+Usage: third_party/get-artifacts [NAME…]
+
+For each library with libpin.toml, copy build outputs into stable artifact/ paths.
+
+libpin.toml [[artifact]] fields:
+  path   destination under third_party/<lib>/ (e.g. artifact/foo.so)
+  from   source path or glob under third_party/<lib>/ (e.g. src/bin/hello-*.bin)
+  pick   newest (mtime, default for globs) | sort | sort-n
+         smart — reserved (version tiers; not implemented yet)
+
+If from is not a glob, pick is ignored.
+
+Sandbox (optional): each collect under artifact write confinement
+  (libpin-sandbox: Landlock and/or bwrap).
+  Disable: LIBPIN_NO_BWRAP=1 LIBPIN_NO_LANDLOCK=1 or --no-bwrap / --no-landlock.
+EOF
+}
+
+NO_LANDLOCK=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --no-bwrap) NO_BWRAP=1; shift ;;
+    --no-landlock) NO_LANDLOCK=1; shift ;;
+    *) NAMES+=("$1"); shift ;;
+  esac
+done
+
+if [[ "$NO_BWRAP" -eq 1 ]]; then
+  export LIBPIN_NO_BWRAP=1
+fi
+if [[ "$NO_LANDLOCK" -eq 1 ]]; then
+  export LIBPIN_NO_LANDLOCK=1
+fi
+
+if [[ ${#NAMES[@]} -eq 0 ]]; then
+  for d in "$ROOT"/*/; do
+    [[ -f "${d}libpin.toml" ]] || continue
+    base="$(basename "$d")"
+    [[ "$base" == "example" ]] && continue
+    NAMES+=("$base")
+  done
+fi
+
+# Multi-lib standalone: re-exec each name under artifact sandbox
+if [[ -z "${LIBPIN_LANDLOCK:-}" && -z "${LIBPIN_SANDBOX:-}" && -x "$ROOT/libpin-sandbox" && ${#NAMES[@]} -gt 0 ]]; then
+  # Only re-wrap when neither layer already active
+  if [[ "${LIBPIN_NO_BWRAP:-0}" != "1" || "${LIBPIN_NO_LANDLOCK:-0}" != "1" ]]; then
+    for n in "${NAMES[@]}"; do
+      "$ROOT/libpin-sandbox" --mode artifact --lib "$n" -- \
+        "$0" --no-bwrap --no-landlock "$n" || FAILURES=$((FAILURES + 1))
+    done
+    exit "$FAILURES"
+  fi
+fi
+
+# Lines: path<TAB>from<TAB>pick
+parse_artifacts() {
+  local pin="$1"
+  python3 - "$pin" <<'PY'
+import sys
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib  # type: ignore
+from pathlib import Path
+data = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+# TOML uses [[artifact]] (singular table name) → key "artifact" list of tables
+entries = data.get("artifact") or data.get("artifacts") or []
+for e in entries:
+    path = e.get("path") or ""
+    frm = e.get("from") or ""
+    if not frm and e.get("from_src"):
+        frm = "src/" + str(e["from_src"]).lstrip("/")
+    pick = e.get("pick") or "newest"
+    print(f"{path}\t{frm}\t{pick}")
+PY
+}
+
+is_glob() {
+  [[ "$1" == *'*'* || "$1" == *'?'* || "$1" == *'['* ]]
+}
+
+pick_file() {
+  local pick="$1"
+  shift
+  local files=("$@")
+  [[ ${#files[@]} -eq 0 ]] && return 1
+  [[ ${#files[@]} -eq 1 ]] && { echo "${files[0]}"; return 0; }
+  case "$pick" in
+    sort)
+      printf '%s\n' "${files[@]}" | sort | tail -1
+      ;;
+    sort-n)
+      printf '%s\n' "${files[@]}" | sort -V | tail -1
+      ;;
+    smart)
+      echo "get-artifacts: pick=smart not implemented yet; using newest (mtime)" >&2
+      ;&
+    newest|*)
+      local f best="" best_t=0 t
+      for f in "${files[@]}"; do
+        t=$(stat -c %Y "$f" 2>/dev/null || echo 0)
+        if [[ "$t" -ge "$best_t" ]]; then
+          best_t=$t
+          best=$f
+        fi
+      done
+      echo "$best"
+      ;;
+  esac
+}
+
+collect_one() {
+  local name="$1"
+  local dir="$ROOT/$name"
+  local pin="$dir/libpin.toml"
+  [[ -f "$pin" ]] || { echo "FAIL $name: no libpin.toml" >&2; return 1; }
+  echo "==> $name  get-artifacts"
+  local path from pick matches m chosen
+  local any=0
+  while IFS=$'\t' read -r path from pick; do
+    [[ -z "$path" ]] && continue
+    any=1
+    [[ -z "$pick" ]] && pick=newest
+    if [[ -z "$from" ]]; then
+      echo "    WARN: $path has no from — skip" >&2
+      continue
+    fi
+    matches=()
+    if is_glob "$from"; then
+      shopt -s globstar nullglob
+      # shellcheck disable=SC2206
+      local expanded=( "$dir"/$from )
+      shopt -u globstar
+      for m in "${expanded[@]}"; do
+        [[ -f "$m" ]] && matches+=("$m")
+      done
+      if [[ ${#matches[@]} -eq 0 ]]; then
+        local basepat
+        basepat="$(basename "$from")"
+        while IFS= read -r m; do
+          matches+=("$m")
+        done < <(find "$dir" -type f -name "$basepat" 2>/dev/null)
+      fi
+    else
+      if [[ -f "$dir/$from" ]]; then
+        matches+=("$dir/$from")
+      fi
+    fi
+    if [[ ${#matches[@]} -eq 0 ]]; then
+      echo "    WARN: no file for from=$from" >&2
+      continue
+    fi
+    chosen="$(pick_file "$pick" "${matches[@]}")"
+    mkdir -p "$(dirname "$dir/$path")"
+    # Prior collect may have left a-w artifacts (RO pin hygiene)
+    if [[ -e "$dir/$path" ]]; then
+      chmod u+w "$dir/$path" 2>/dev/null || true
+    fi
+    cp -a "$chosen" "$dir/$path"
+    echo "    $chosen → $path"
+  done < <(parse_artifacts "$pin")
+
+  if [[ "$any" -eq 0 ]]; then
+    echo "    (no [[artifact]] entries — nothing to copy)"
+  fi
+  echo "    OK get-artifacts $name"
+}
+
+for n in "${NAMES[@]}"; do
+  collect_one "$n" || FAILURES=$((FAILURES + 1))
+done
+exit "$FAILURES"

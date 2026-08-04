@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# libpin-sandbox — optional Landlock + bubblewrap for pin tooling
+#
+# Modes (write surfaces for mutation; reads stay unrestricted under Landlock):
+#   third_party  → third_party/
+#   lib          → third_party/<lib>/
+#   src          → third_party/<lib>/src/
+#   artifact     → third_party/<lib>/artifact/
+#
+# Order when both available:
+#   bwrap (outer, if not already sandboxed) → landlock (inner, stackable) → command
+#
+# Usage:
+#   libpin-sandbox --mode lib|src|artifact --lib NAME -- command…
+#   libpin-sandbox --mode third_party -- command…
+#
+# Env:
+#   LIBPIN_NO_BWRAP=1 / LIBPIN_NO_LANDLOCK=1
+#   LIBPIN_SANDBOX=<mode>   already in bwrap — do not nest bwrap
+#   LIBPIN_ALLOW_GIT_HOME=1 + GIT_HOME
+#   LIBPIN_BWRAP_DEBUG=1 / LIBPIN_LANDLOCK_DEBUG=1
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODE=""
+LIB=""
+
+usage() {
+  sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --mode) MODE="$2"; shift 2 ;;
+    --lib) LIB="$2"; shift 2 ;;
+    --) shift; break ;;
+    -*)
+      echo "libpin-sandbox: unknown option: $1" >&2
+      exit 2
+      ;;
+    *) break ;;
+  esac
+done
+
+if [[ $# -eq 0 ]]; then
+  echo "libpin-sandbox: missing command" >&2
+  exit 2
+fi
+if [[ -z "$MODE" ]]; then
+  echo "libpin-sandbox: --mode required" >&2
+  exit 2
+fi
+
+# Build final command: optionally wrap with landlock first (runs inside bwrap if used)
+CMD=("$@")
+if [[ "${LIBPIN_NO_LANDLOCK:-0}" != "1" && -x "$HERE/libpin-landlock" ]]; then
+  LL=( "$HERE/libpin-landlock" --mode "$MODE" --tp-root "$HERE" )
+  [[ -n "$LIB" ]] && LL+=( --lib "$LIB" )
+  LL+=( -- )
+  CMD=( "${LL[@]}" "${CMD[@]}" )
+fi
+
+# Outer bwrap (single-level only)
+if [[ "${LIBPIN_NO_BWRAP:-0}" != "1" && -z "${LIBPIN_SANDBOX:-}" && -x "$HERE/libpin-bwrap" ]]; then
+  BW=( "$HERE/libpin-bwrap" --mode "$MODE" )
+  [[ -n "$LIB" ]] && BW+=( --lib "$LIB" )
+  BW+=( -- )
+  # libpin-bwrap sets LIBPIN_SANDBOX; landlock still applies inside
+  exec "${BW[@]}" "${CMD[@]}"
+fi
+
+exec "${CMD[@]}"

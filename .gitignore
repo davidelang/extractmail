@@ -7,6 +7,12 @@ master/
 # third_party: ignore checkouts/local state; track tool + pin contract under each lib dir
 third_party/*
 !third_party/fetch-deps
+!third_party/get-artifacts
+!third_party/libpin-bwrap
+!third_party/libpin-landlock
+!third_party/libpin-sandbox
+!third_party/README.md
+!third_party/COPIED_FROM_VE.txt
 !third_party/*/
 third_party/*/src/
 third_party/*/status.local
@@ -24,8 +30,8 @@ email-connection/
 agent-*/
 orchestration/
 
-# Local AAR / pin build outputs at repo root
-artifact/
+# Local AAR / pin build outputs at repo root only
+/artifact/
 
 # Multi-agent sandbox local state (README / audit_merge stay tracked)
 sandbox/PRs/

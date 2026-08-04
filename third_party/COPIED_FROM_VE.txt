@@ -1,0 +1,6 @@
+Vendored from VehicleExpenses third_party pin tooling + remotetable pin (not nested git).
+Date: 2026-08-03
+VE branch context: email-connection.wt
+remotetable pin: 65366fc917a5abcc8efc74014be4d524226ffbb3 (github.com/davidelang/remotetable master)
+Tools: fetch-deps, get-artifacts, libpin-{sandbox,landlock,bwrap}, example, README
+Update by re-copying when VE pin tooling or remotetable libpin.toml changes.
