@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# remotetable pin build — RO src OK; Gradle scratch under src/android only.
+# Product: src/android/remotetable/build/outputs/aar/remotetable-release.aar
+# Collect: get-artifacts → artifact/remotetable.aar
+set -euo pipefail
+ROOT=$(cd "$(dirname "$0")" && pwd)
+SRC="$ROOT/src"
+export JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}"
+export PATH="$JAVA_HOME/bin:$PATH"
+export ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}"
+[[ -d "$ANDROID_HOME" ]] || export ANDROID_HOME=/home/dlang/Android/Sdk
+
+[[ -d "$SRC" ]] || { echo "ERROR: no src — run: ./third_party/fetch-deps ro remotetable" >&2; exit 1; }
+[[ -f "$SRC/scripts/build-aar.sh" ]] || { echo "ERROR: missing src/scripts/build-aar.sh" >&2; exit 1; }
+
+# Writable Gradle dirs under otherwise RO pin tree (RO materialize chmods everything a-w)
+unlock_tree() {
+  local d="$1"
+  chmod u+w "$SRC" 2>/dev/null || true
+  [[ -d "$SRC/android" ]] && chmod u+w "$SRC/android" 2>/dev/null || true
+  mkdir -p "$d" 2>/dev/null || true
+  chmod -R u+w "$d" 2>/dev/null || true
+}
+unlock_tree "$SRC/android/.gradle"
+unlock_tree "$SRC/android/remotetable"
+# ensure module + outputs writable even if tree existed RO
+chmod -R u+w "$SRC/android/remotetable/build" "$SRC/android/.gradle" 2>/dev/null || true
+chmod u+w "$SRC/android" 2>/dev/null || true
+
+
+echo "remotetable build: src=$SRC head=$(git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo '?')"
+
+# Conformance (does not need writable tree beyond temp)
+if [[ -f "$SRC/conformance/harness.py" ]]; then
+  python3 "$SRC/conformance/harness.py"
+fi
+
+# Keep all Gradle caches under src (required when bwrap mode=src)
+export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$SRC/android/.gradle-user-home}"
+mkdir -p "$GRADLE_USER_HOME"
+chmod -R u+w "$GRADLE_USER_HOME" 2>/dev/null || true
+
+# Assemble under src only — do not use library build-aar.sh (it copies to ../artifact).
+AAR_MOD="$SRC/android"
+cd "$AAR_MOD"
+if [[ ! -x ./gradlew ]]; then
+  if command -v gradle >/dev/null 2>&1; then
+    gradle wrapper --gradle-version 8.7
+  else
+    echo "ERROR: no gradlew and no gradle on PATH" >&2
+    exit 1
+  fi
+fi
+chmod u+w gradlew 2>/dev/null || true
+bash ./gradlew :remotetable:assembleRelease --no-daemon
+
+AAR_SRC="$SRC/android/remotetable/build/outputs/aar/remotetable-release.aar"
+if [[ ! -s "$AAR_SRC" ]]; then
+  AAR_SRC=$(find "$SRC/android" -name 'remotetable-release.aar' 2>/dev/null | head -1 || true)
+fi
+[[ -n "${AAR_SRC:-}" && -s "$AAR_SRC" ]] || { echo "ERROR: AAR not produced under src/android" >&2; exit 1; }
+echo "OK product: $AAR_SRC ($(du -h "$AAR_SRC" | cut -f1)) — collect via get-artifacts"
