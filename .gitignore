@@ -18,3 +18,19 @@ third_party/*/*.local
 android/.gradle/
 android/**/build/
 .write_ok
+
+# Linked agent/product worktrees (paths sit next to main checkout)
+email-connection/
+agent-*/
+orchestration/
+
+# Local AAR / pin build outputs at repo root
+artifact/
+
+# Multi-agent sandbox local state (README / audit_merge stay tracked)
+sandbox/PRs/
+sandbox/plans/
+sandbox/historical-plans/
+sandbox/implementation-failure-logs/
+sandbox/research/
+
