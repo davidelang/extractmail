@@ -3,11 +3,29 @@ ENGINEERING_LOG.md merge=ve-englog
 TODO.md merge=ve-special-ours
 project-facts.md merge=ve-special-ours
 
-# Config smudge (optional; needs project.config)
+
+# manage-configs (smudge/clean @@ tokens) — maintained by deploy-manage-configs-to-libs.sh
+setup-project filter=manage-configs
+set-worktree-perms filter=manage-configs
+set-sandbox-perms filter=manage-configs
+project.config.example filter=manage-configs
+landlock.config filter=manage-configs
+landlock.config.example filter=manage-configs
 run-grok filter=manage-configs
-run-grok-planner filter=manage-configs
 run-grok-master filter=manage-configs
+run-grok-planner filter=manage-configs
 run-grok-coder filter=manage-configs
 run-grok-orchestrator filter=manage-configs
+.grok/lib/grok-launch-common.sh filter=manage-configs
+run-antigravity filter=manage-configs
+run-antigravity-master filter=manage-configs
+run-antigravity-planner filter=manage-configs
+run-antigravity-coder filter=manage-configs
+run-antigravity-orchestrator filter=manage-configs
+third_party/fetch-deps filter=manage-configs
+third_party/get-artifacts filter=manage-configs
+third_party/libpin-landlock filter=manage-configs
+third_party/libpin-bwrap filter=manage-configs
+third_party/libpin-sandbox filter=manage-configs
 filter-apply-config !filter
 filter-clean-config !filter
