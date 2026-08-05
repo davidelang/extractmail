@@ -1,7 +1,4 @@
-# AGENT_CONTEXT.md — master
+# Agent Context: agent-1
 
-- **Agent ID:** master
-- **Current Branch:** master
-- **Role:** Master / product
-- **Sandbox:** /home/dlang/git/extractmail/sandbox/
-- **Status:** ACTIVE
+- **Current Branch:** initial-featured
+- **Status:** INITIALIZED
