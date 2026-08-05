@@ -38,7 +38,7 @@ for f in AGENT_MANDATES.md AGENTS.md GROK.md GEMINI.md new_agent_prompt standard
          MASTER_AGENT_MANDATE.md MULTI_AGENT_USER_INSTRUCTIONS.md project-facts.md \
          append-to-engineering-log todo-append todo-close get-builds-tag.sh install-merge-drivers.sh \
          .gitattributes run-grok run-grok-planner run-grok-coder run-grok-master run-grok-orchestrator \
-         filter-apply-config filter-clean-config project.config.example \
+         filter-apply-config filter-clean-config project.config.example env refresh-shell.c install-refresh-shell.sh \
          setup_agent.sh remove_worktree.sh update-rules.sh merge-branch-into-master.sh checkifclean; do
   [[ -e "$ROOT/$f" ]] && cp -a "$ROOT/$f" "$WT_DIR/" 2>/dev/null || true
 done

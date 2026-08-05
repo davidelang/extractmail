@@ -10,3 +10,6 @@ third_party/*/src/
 third_party/*/status.local
 third_party/*/*.local
 # --- end third_party consumer ---
+
+# refresh-shell: setuid helper binary (built; not in git). Source: refresh-shell.c
+refresh-shell
