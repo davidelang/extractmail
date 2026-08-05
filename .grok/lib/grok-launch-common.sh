@@ -266,11 +266,30 @@ launch_grok_with_prompt() {
   fi
   echo "Tip: Ctrl+M or /multiline for multi-line input."
 
+  # Mutation-only Landlock (agent-landlock) as the role user, immediately before grok.
+  # AGENT_LANDLOCK_DISABLE=1 skips; missing ABI warns and continues (helper soft-fail).
+  local landlock_helper="${SCRIPT_DIR}/agent-landlock"
+  local landlock_args=()
+  if [[ -x "$landlock_helper" || -f "$landlock_helper" ]]; then
+    [[ -x "$landlock_helper" ]] || chmod +x "$landlock_helper" 2>/dev/null || true
+    landlock_args=(
+      "$landlock_helper"
+      --role "${ROLE_KEY:-primary}"
+      --worktree "$SCRIPT_DIR"
+      --
+    )
+    echo "Landlock: $landlock_helper role=${ROLE_KEY:-primary}"
+  else
+    echo "Landlock: helper missing at $landlock_helper — launching without session Landlock" >&2
+  fi
+
   # shellcheck disable=SC2086
   exec sudo -u "$run_user" -- env \
     ${ANDROID_SHARED:+ANDROID_USER_HOME="$ANDROID_SHARED"} \
     GROK_PROMPT_ROOT="$SCRIPT_DIR" \
+    GIT_HOME="${GIT_HOME:-}" \
     bash -c 'umask '"${umask_launch:-002}"'; exec "$@"' bash \
+      ${landlock_args[@]+"${landlock_args[@]}"} \
       "$GROK_BIN" \
       "$prompt" \
       ${MODEL_ARGS[@]+"${MODEL_ARGS[@]}"} \
