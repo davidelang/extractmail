@@ -253,7 +253,7 @@ EOF
     -e "s|@@ANTIGRAVITY_BIN@@|\$HOME/git/antigravity/agy|g" \
     "$pc"
   chown "$RUN_AS:$CODE_GROUP" "$pc" 2>/dev/null || true
-  echo "  project.config git_home=$(grep '^git_home=' "$pc")"
+  echo "  project.config $(grep -E '^git_home=' "$pc" | head -1)"
 }
 
 patch_update_rules_file_list() {
@@ -467,7 +467,34 @@ git_commit_repo() {
     echo "  skip commit ($root)"
     return 0
   fi
-  as_user git -C "$root" add -A || true
+  # Never git add -A: worktrees, nested .git dirs, and junk (e.g. .write-ok)
+  # must not become gitlinks or tracked noise.
+  local paths=(
+    env refresh-shell.c install-refresh-shell.sh
+    agent-landlock landlock-smoke-matrix landlock-write-probe
+    landlock.config landlock.config.example
+    setup_agent.sh remove_worktree.sh update-rules.sh fix-perms
+    hooks/post-checkout
+    filter-apply-config filter-clean-config setup-project
+    append-to-engineering-log todo-append todo-close get-builds-tag.sh
+    install-merge-drivers.sh merge-branch-into-master.sh generate_pr.sh
+    run-grok run-grok-orchestrator run-grok-planner run-grok-coder run-grok-master
+    run-antigravity run-antigravity-master run-antigravity-planner
+    project.config.example .gitattributes .gitignore
+    new_agent_prompt MASTER_AGENT_MANDATE.md
+    .grok/lib/grok-launch-common.sh
+    .grok/agents .grok/hooks .grok/prompts .grok/skills
+    git-merge-drivers
+    deploy-orchestration-parity.sh
+    tools docs README.md
+    AGENT_CONTEXT.md ENGINEERING_LOG.md TODO.md project-facts.md
+  )
+  local p
+  for p in "${paths[@]}"; do
+    if [[ -e "$root/$p" ]]; then
+      as_user git -C "$root" add -- "$p" 2>/dev/null || true
+    fi
+  done
   if as_user git -C "$root" diff --cached --quiet 2>/dev/null; then
     echo "  nothing to commit in $root"
     return 0

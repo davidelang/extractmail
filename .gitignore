@@ -13,3 +13,7 @@ third_party/*/*.local
 
 # refresh-shell: setuid helper binary (built; not in git). Source: refresh-shell.c
 refresh-shell
+
+# nested/local worktrees (not submodules)
+continue-implementation/
+third-party-pin.wt/
