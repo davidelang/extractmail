@@ -40,3 +40,11 @@ sandbox/historical-plans/
 sandbox/implementation-failure-logs/
 sandbox/research/
 
+
+.gocache/
+.gomodcache/
+scripts/extractmail-go-bin
+
+# secrets (never commit)
+*.password
+.env.local
