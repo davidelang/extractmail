@@ -8,6 +8,9 @@ git_home=@@GIT_HOME@@
 # Default sandbox dirname under worktree
 sandbox_path=@@SANDBOX_PATH@@
 
+# Live writes: worktree .gradle-home (GRADLE_USER_HOME), .gradle (project),
+# .android-shared. Do not set GRADLE_USER_HOME to $orch_root/.gradle-shared.
+
 [profile.android]
 path=.android-shared
 path=env:HOME/.android
@@ -15,3 +18,4 @@ path=env:HOME/.android
 [profile.gradle]
 path=env:HOME/.gradle
 path=.gradle
+path=.gradle-home
