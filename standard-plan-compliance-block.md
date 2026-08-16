@@ -1,4 +1,4 @@
-## COMPLIANCE & EXECUTION GUARDRAILS (STANDARD BLOCK — library host; DO NOT PASTE INTO PLANS)
+## COMPLIANCE & EXECUTION GUARDRAILS (STANDARD BLOCK v2026-07-31 — REFERENCE ONLY; DO NOT PASTE INTO PLANS)
 
 Plans must **cite this file by path** (one line). Do **not** paste this block into plan documents.
 
@@ -6,20 +6,16 @@ Plans must **cite this file by path** (one line). Do **not** paste this block in
 
 - **Per-phase gates** (details: `AGENT_MANDATES.md`):
   - **Start:** Re-read approved plan + `project-facts.md` (full); first action `./append-to-engineering-log` (never ritual TODO). Set plan **Status: APPROVED**. **No `cd … &&` on helpers** — cwd fixed after startup.
-  - **Each phase:** Phase-only edits → forensic read/grep → `git add` (sources + `ENGINEERING_LOG.md` if appended) → **successful verify** before the next phase.
-    - **Verify** = this repo’s post-edit check (language-specific): compile/typecheck failure **or** test failure both fail the phase (baseball **strike**).
-    - Use project helper when present (e.g. `./verify`, `./build_app` analogue); until then, run the exact commands named in the plan and treat failure as a strike.
+  - **Each phase:** Phase-only edits → forensic read/grep → `git add` (sources + `ENGINEERING_LOG.md` if appended) → successful `./build_app` before the next phase.
   - **Completeness (before handoff):** Re-read plan contract. Missing/reverted in-scope work → implement it. If blocked → **Status: BLOCKED — needs replan**, report gaps, do **not** ready-to-test.
   - **Granularity:** Coherent independently verifiable phases (~3–8 typical). Finer only after end of inning (3 outs) via End of Inning Report.
-  - **Recovery:** Reset only via `./get-builds-tag.sh` preflight when available (three git-reset contexts). **3rd out:** inning-end report under `sandbox/implementation-failure-logs/` before replan.
+  - **Recovery:** Reset only via `./get-builds-tag.sh` preflight. **3rd out:** inning-end report before replan.
 
-- **Hygiene:** `project-facts.md` = orientation only; `TODO.md` future-only via `todo-append`/`todo-close`; `ENGINEERING_LOG` via `./append-to-engineering-log` only; sandbox `./sandbox/` (absolute path in project-facts).
+- **Hygiene:** `project-facts.md` = orientation only; `TODO.md` future-only via `todo-append`/`todo-close`; `ENGINEERING_LOG` via `./append-to-engineering-log` only; sandbox `/home/dlang/git/VehicleExpenses-automated/dev-ai-interaction/`.
 
-- **Remotes:** Agents do **not** `git push`. Human publishes.
-
-- **Handoff:** After completeness + final verify + verification, set plan **Status: CODE LANDED**, emit exactly:  
+- **Handoff:** After completeness + final build + verification, set plan **Status: CODE LANDED**, emit exactly:  
   `**END OF EXECUTION TURN. Awaiting new directive or plan approval before any further source changes or investigation that leads to edits.**`  
-  then `results ready to test (new tag: ...)` when applicable.  
-  Product-intent chat is human/planner; master Compliance Checker is **optional**.
+  then `results ready to test (new tag: ...)`.  
+  Product-intent chat is human/planner; master Compliance Checker is **optional**. Do not claim product-intent PASS as coder.
 
-- **Standing rules:** `AGENT_MANDATES.md`, `MULTI_AGENT_USER_INSTRUCTIONS.md`, role pack in `AGENTS.md` (re-read on launch, compaction, new cycle — not every turn).
+- **Standing rules:** `AGENT_MANDATES.md`, `MULTI_AGENT_USER_INSTRUCTIONS.md`, role pack in `AGENTS.md` (re-read on launch, **`/compact` or auto-compact**, new cycle, execute start). “Not every turn” never cancels those events.
