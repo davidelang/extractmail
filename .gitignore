@@ -1,50 +1,20 @@
-project.config
-
-
 master/
+project.config
 
 # --- third_party consumer (managed by apply-third-party-gitignore.sh) ---
 # third_party: ignore checkouts/local state; track tool + pin contract under each lib dir
 third_party/*
 !third_party/fetch-deps
-!third_party/get-artifacts
-!third_party/libpin-bwrap
-!third_party/libpin-landlock
-!third_party/libpin-sandbox
-!third_party/README.md
-!third_party/COPIED_FROM_VE.txt
 !third_party/*/
 third_party/*/src/
 third_party/*/status.local
 third_party/*/*.local
 # --- end third_party consumer ---
 
-**/__pycache__/
-*.pyc
-android/.gradle/
-android/**/build/
-.write_ok
+# refresh-shell: setuid helper binary (built; not in git). Source: refresh-shell.c
+refresh-shell
 
-# Linked agent/product worktrees (paths sit next to main checkout)
-email-connection/
-agent-*/
-orchestration/
-
-# Local AAR / pin build outputs at repo root only
-/artifact/
-
-# Multi-agent sandbox local state (README / audit_merge stay tracked)
-sandbox/PRs/
-sandbox/plans/
-sandbox/historical-plans/
-sandbox/implementation-failure-logs/
-sandbox/research/
-
-
-.gocache/
-.gomodcache/
-scripts/extractmail-go-bin
-
-# secrets (never commit)
-*.password
-.env.local
+# nested/local worktrees (not submodules)
+continue-implementation/
+third-party-pin.wt/
+sandbox/
