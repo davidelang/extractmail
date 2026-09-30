@@ -17,3 +17,4 @@ refresh-shell
 # nested/local worktrees (not submodules)
 continue-implementation/
 third-party-pin.wt/
+sandbox/
