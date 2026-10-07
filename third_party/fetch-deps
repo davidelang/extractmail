@@ -33,7 +33,7 @@ default_git_home() {
   local cand
   cand="$(cd "$VE_ROOT/../.." 2>/dev/null && pwd)" || cand=""
   if [[ -n "$cand" && -d "$cand/remotetable" ]]; then echo "$cand"; return; fi
-  if [[ -d /home/dlang/git/remotetable ]]; then echo /home/dlang/git; return; fi
+  if [[ -d @@GIT_HOME@@/remotetable ]]; then echo @@GIT_HOME@@; return; fi
   echo "${HOME}/git"
 }
 
@@ -366,7 +366,7 @@ materialize_at_sha() {
 
 resolve_pin_sha() {
   local name="$1" lock sha
-  pin="$(lock_path "$name")"
+  lock="$(lock_path "$name")"
   sha="$(yaml_get "$lock" git_sha || true)"
   if is_real_sha "$sha"; then
     RESOLVED_SHA="$sha"
@@ -433,7 +433,7 @@ offer_mainish_retarget() {
 cmd_ro() {
   local name="$1"
   local lock src sha
-  pin="$(lock_path "$name")"
+  lock="$(lock_path "$name")"
   src="$(src_path "$name")"
   [[ -f "$lock" ]] || { echo "FAIL $name: no libpin.toml" >&2; return 1; }
   [[ -r "$lock" ]] || { echo "FAIL $name: cannot read libpin.toml" >&2; return 1; }
@@ -468,7 +468,7 @@ cmd_ro() {
 cmd_rw() {
   local name="$1"
   local lock src sha branch base host
-  pin="$(lock_path "$name")"
+  lock="$(lock_path "$name")"
   src="$(src_path "$name")"
   branch="${BRANCH_OVERRIDE:-$(ve_branch)}"
   [[ "$branch" != "HEAD" && -n "$branch" ]] || branch="work"
@@ -523,7 +523,7 @@ cmd_rw() {
 cmd_status() {
   local name="$1"
   local lock src sp mode head locksha
-  pin="$(lock_path "$name")"
+  lock="$(lock_path "$name")"
   src="$(src_path "$name")"
   sp="$(status_path "$name")"
   locksha="$(yaml_get "$lock" git_sha 2>/dev/null || echo "?")"
@@ -580,7 +580,7 @@ cmd_build() {
   local name="$1"
   local dir="$ROOT/$name"
   local lock src
-  pin="$(lock_path "$name")"
+  lock="$(lock_path "$name")"
   src="$(src_path "$name")"
   echo "==> $name  build"
   if [[ ! -d "$src" ]]; then
