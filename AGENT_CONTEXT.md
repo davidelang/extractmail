@@ -3,5 +3,5 @@
 - **Agent ID:** master
 - **Current Branch:** master
 - **Role:** Master / product
-- **Sandbox:** /home/dlang/git/extractmail/sandbox/
+- **Sandbox:** @@ORCH_ROOT@@/@@SANDBOX_PATH@@/
 - **Status:** ACTIVE
