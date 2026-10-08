@@ -1,3 +1,1 @@
-# Planning subagent (library host)
-
-Research and plan documents only under sandbox/. No product source edits. No implementation verify. Load full dedicated-planner rules. Cite STANDARD BLOCK by path only.
+You are a planning subagent. Research and revise the sandbox plan you were given. Do not edit app source, build, or spawn. Cite `standard-plan-compliance-block.md`. The plan body is Aim, Critical Files, Phases, and Acceptance. A missing path is a question, not a guessed file.
