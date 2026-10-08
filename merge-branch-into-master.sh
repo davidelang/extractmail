@@ -218,11 +218,18 @@ merge_ff_index() {
 
 merge_index_first() {
   local branch="$1"
-  local base tree
+  local base tree mt_out mt_rc
   echo "  path: index-first (merge-tree + read-tree)"
   clear_partial_index
   base=$(git merge-base HEAD "$branch")
-  tree=$(git merge-tree --write-tree --merge-base="$base" HEAD "$branch")
+  mt_out=$(git merge-tree --write-tree --merge-base="$base" HEAD "$branch" 2>&1)
+  mt_rc=$?
+  if [ "$mt_rc" -ne 0 ]; then
+    echo "ERROR: merge-tree failed (rc=$mt_rc); not read-tree'ing" >&2
+    printf '%s\n' "$mt_out" >&2
+    return 1
+  fi
+  tree=$(printf '%s\n' "$mt_out" | head -n 1)
   if [ -z "$tree" ]; then
     echo "ERROR: merge-tree produced empty tree" >&2
     return 1
@@ -307,7 +314,7 @@ TODO.md / project-facts.md
 POST-MERGE CHECK (do this before ./build_app):
   git diff --cached --name-only
   → must include feature paths (e.g. .kt), not ONLY ENGINEERING_LOG.md
-  If only eng-log is staged → FAILED. Do not build_app. See docs/reference/MERGE_POSTMORTEM_IMPROVE_PUMP_CLASSIFICATION.md
+  If only eng-log is staged → FAILED. Do not build_app. See docs/obsolete/MERGE_POSTMORTEM_IMPROVE_PUMP_CLASSIFICATION.md
 
 Next: complete TODO + project-facts protocol → git status → ./build_app
 ========================================================================

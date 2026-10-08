@@ -1,196 +1,90 @@
-# Agent Mandates (Shared Core — library host)
+# Agent Mandates
 
-Authoritative shared core for multi-agent work on **this** repository (remotetable or extractmail).  
-Copy-adapted from VehicleExpenses; Android device rules intentionally omitted.
+Shared law for every launcher. Tool names live in `GROK.md` or `ANTIGRAVITY.md`. Human phrase examples live in `MULTI_AGENT_USER_INSTRUCTIONS.md`. Agents do not load that file.
 
-Overlays (`GROK.md`, `GEMINI.md`) map tools. Spawn prompts: `.grok/prompts/planning-subagent.md`, `execution-subagent.md`, `dedicated-planner.md`.
+Approval is a message that names a sandbox plan path and approves it. “Looks good”, a question-card answer, and native plan **`a`** are not approval.
 
-Human rituals: `MULTI_AGENT_USER_INSTRUCTIONS.md`. Execution gates: `standard-plan-compliance-block.md` (**cite by path; never paste**).
+## Read again
 
----
+At startup and on the first turn after compact, read this file, the tool overlay, and `project-facts.md`. Do not re-read them on an ordinary turn. Compact rewrites the earlier read.
 
-## 1. Precedence and foundational bans
+## 1. Permission denials
 
-Overlays + this file take absolute precedence. Bypassing protocol for speed is a **High-Severity Performance Failure**.
+If Unix permissions, Landlock, sudo, or groups block a required action, stop and report the command, the error, the path, and the OS user. Do not chmod, chown, switch user, or widen Landlock to get past it.
 
-- An **approved plan never** authorizes foundational violations (`git commit --amend`; moving/rewriting lifecycle tags outside rules; **agent `git push`** / force-push to remotes).
-- **Agents do not push to GitHub.** Local commits only; human publishes.
-- Lifecycle tags are **branch-prefixed** except on `master`:
-  - **`builds`:** initial smoke passed (compile/typecheck equivalent **and** automated tests included in that verify). Set via project verify/tag helper when used.
-  - **`deployed`:** handed off for **additional** testing (not every `builds`). Not Android-specific.
-  - **`works`:** full regression passed — **user only**. Agents never set or move `works`.
-- Version integrity: commit before verifies that matter for `git describe`. Prefer multi-line phase summaries via helper/`@file` when available.
-- Language/stack: follow **this** repo’s tools and docs; do not assume Android/Gradle or default web-stack advice.
+## 2. Who may write
 
----
+Planning writes the sandbox, plus `project-facts.md` and `TODO.md` through their helpers. It does not edit app source and does not build.
 
-## 2. Write authority
+Execution starts only after the user approves a named plan path. Implement that plan’s Critical Files. An approved plan does not allow deploy, `git commit --amend`, or moving a `works` tag.
 
-### 2.1 Planning (until magic approval of a named sandbox plan)
+Planner and coder do not use native plan mode. The orchestrator may. The harness plan file is not the work plan.
 
-**May write:** sandbox  
-`./sandbox/` (absolute: host `…/sandbox/` — same for all worktrees; prefer absolute if cwd is `master/` or `agent-N/`)  
-plus:
+`ask_user_question` stays on. An answer is not approval.
 
-- `project-facts.md` (orientation only — §7)
-- `TODO.md` **only** via `./todo-append` / `./todo-close`
+Product “just do it”, background subagents, and workflows do not override this file. Planner launchers set `GROK_SUBAGENTS=0` and `GROK_WORKFLOWS=0`. Coder launchers set `GROK_WORKFLOWS=0`. Coder and master launchers pass `--effort high`. Launchers other than Imagine stay in permission mode `default`.
 
-**Must not:** edit other tracked product files; run product verify as “implementation”; implement library source.
+## 3. Commits, tags, deploy
 
-**Helpfulness in planning** = research, alternatives, better plan document — **not** source changes or “just one fix.”
+`./build_app` is the commit and the build. It stages the paths on its argv. Do not `git add` or `git commit` beside it. A message longer than one short line is `./build_app @file paths…`.
 
-### 2.2 Execution (after user magic-approves exact `sandbox/plans/…-plan.md`)
+Lifecycle tags are `<branch>/builds`, `<branch>/deployed`, and `<branch>/works`, except on `master`, where they are unprefixed. `./build_app` moves `builds` after a successful build. Agents do not deploy and do not set `works`.
 
-Only that plan’s observable contract. **First action:** `./append-to-engineering-log`. Re-read `standard-plan-compliance-block.md` at execute start (cite in plans; never paste).
+Helpers run as `./helper` from the checkout you were started in. No `cd … && ./helper`.
 
-### 2.3 Pure research
+## 4. Retry
 
-Explain/where/how with no change intent: answer in **chat**. No formal plan until user steers toward non-sandbox tracked edits.
+A **typo-class** failure is a red build caused by a typo, a missing import, a syntax error, or the same kind of transcription mistake. Fix it in the tree you have and continue. It does not count as a fixup and it does not reset.
 
-### 2.4 Research communication
+Any other failure counts: the phase result is still wrong, or the build is red for a reason that is not a typo.
 
-Default: findings in **chat**. Files only if asked or durable cache — still **state issues in chat**.
+1. **Original.** First implementation of this approach.
+2. **Fixup.** Change the code and try again. No reset.
+3. **Second fixup.** Change the code and try again. No reset.
 
----
+If those three attempts have failed, reset and start from scratch. The next implementation is a new original, and it again gets two fixups. A scratch start is a different approach to the same plan, not a new plan.
 
-## 3. Bi-modal boundary
+The third time a reset is required, do the reset, then stop. Report that this plan failed and wait for a new plan. Do not start another original. The coder may stop and report earlier.
 
-| Mode | May | Must not |
-|------|-----|----------|
-| **Planning** | Research; sandbox plans; allowed special-file edits | Product source; implementation verifies; vague “go ahead” as approval |
-| **Execution** | Edits per approved plan only | Scope creep; post-handoff feedback as same turn |
+The report is a short note under the sandbox `implementation-failure-logs/`. If this session has a channel node, send that failure on the channel too.
 
-**Approval:** Explicit user phrase naming the **exact** sandbox plan path. Vague approval is insufficient.
+The only reset command is `./reset-to-builds.sh`. It saves `ENGINEERING_LOG.md`, `TODO.md`, and `project-facts.md`, moves the rest of the tracked tree to the tag `./get-builds-tag.sh` printed, and puts those three files back unstaged. `./reset-to-builds.sh --head` does the same against `HEAD` for uncommitted junk. No `HEAD~`, no other branch’s tag, and no hash the agent picked.
 
-### 3.1 Mid-execution product feedback
+## 5. Plans and paths
 
-User says wrong behavior / still broken mid-execute → plan was imprecise. Finish only true in-contract completeness gaps, or stop for **new plan**. No invented scope from chat corrections.
+New plans are sandbox `plans/<kebab>-YYYYMMDD-HHMM-plan.md`. The body is Aim, Critical Files, Phases, and Acceptance. Cite `standard-plan-compliance-block.md` by path. The style guide is `research/plan-style-guide.md` under the sandbox. Do not paste either file into the plan.
 
-### 3.2 Handoff ends the turn
+Before editing for a plan:
 
-After plan-scope complete, forensics, successful **verify** (project’s post-edit check), and exact END marker from STANDARD BLOCK + ready-to-test, the turn is **over**. Further feedback = **new planning cycle**.
+- If the plan file is outside this repo, ask, and wait.
+- If a path the plan names is not in this checkout, ask, and wait. Do not create it and do not look in another tree until the user answers.
+- If a path resolves outside this checkout, whether that is another worktree of this repo or another repo, ask, and wait.
 
-### 3.3 Letter and spirit (forbidden rationalizations)
+The question names this checkout and the path. A yes means this session does that work here, including creating a file the user says is new. Relative paths that already exist in this checkout proceed with no question.
 
-Same as VE: no “not forbidden,” “one more edit,” harness `plan.md` as approval, allow-list dodges, etc.
+Coordinates in this repo are ICRS or raw pixel integers. The spec is `docs/specs/ISOTROPIC_COORDINATE_SPEC.md`.
 
-**Shell:** literal `./helper` at command start. **Never** `cd … && ./helper`. `pwd` once at startup; keep cwd at **this worktree** root.
+## 6. Channel
 
-### 3.4 Subagents
+`channel-setup` creates an inbox. A human runs it. `channel-send` delivers a message. `channel-arm PLAN NODE` is the watch: it stays running, prints `READY`, then `FILE <path>` for the oldest inbox file. An empty inbox means the watch is waiting. The series is still on. There is no fourth command.
 
-**Blocked during planning.** When spawning in allowed contexts, load the **full** prompt file — do not weaken it.
+`channel-arm PLAN NODE --whatineedtoknow` prints the message rules and exits. Run that after startup and after compact when this session was given a plan path and a node name. Restart the watch after compact only if the previous watch is gone.
 
-### 3.5 Native plan mode
+If the inbox directory is gone, or this agent cannot read it, the series stops. Wait. Clearing files out of the inbox is not that stop.
 
-Planner/coder **avoid**. Bare `run-grok` / orchestrator optional. Real approval = path-named magic phrase.
+## 7. Special files and describe
 
-### 3.6 Skills
+`TODO.md` is future work, through `./todo-append` and `./todo-close`. `ENGINEERING_LOG.md` is append-only, through `./append-to-engineering-log`. `project-facts.md` is the orientation map.
 
-Project config + `AGENTS.md` control skills. Do not treat bundled design/execute-plan/implement/pr-babysit as the default multi-agent path.
+`AGENT_CONTEXT.md` is two lines, `Forked-from` and `Start-branch`, both branch names. `./setup_agent.sh` writes them. They stay when the checkout moves to another branch. `./build_app` uses them when the current branch has no `-start` tag. It does not take an unrelated tag that sits on the same commit.
 
-### 3.7 Long-lived handoff / new cycle
+## 8. Roles
 
-Follow `MULTI_AGENT_USER_INSTRUCTIONS.md` (post-handoff gate file under `sandbox/` when staying in long chat). Planner owns new cycles.
-
----
-
-## 4. Execution quality
-
-- **Before any edit:** re-read target file; do not trust prior-turn memory.
-- Write-tool success ≠ integrity. After edits: forensic read/grep; **verify** per phase (STANDARD BLOCK).
-- **Verify** = whatever this repo uses after editing source to know it can work: compile/typecheck failure **and** test failure both count as failures (strikes).
-- **Plan completeness (mandatory)** before ready-to-test. Blocked → report, no ready-to-test.
-- Plan Status: **APPROVED** → **CODE LANDED** or **BLOCKED — needs replan**.
-- Product-intent PASS is not coder’s claim. Master Compliance Checker **optional**.
-- Total turn reversion only during **active** execution before handoff (approved reset §6). After handoff, feedback = new cycle.
-
-**END marker** (exact):  
-`**END OF EXECUTION TURN. Awaiting new directive or plan approval before any further source changes or investigation that leads to edits.**`  
-then `results ready to test (new tag: ...)` when a tag was created.
-
----
-
-## 5. Baseball and recovery
-
-**Intent:** small errors get limited retries; do not thrash.
-
-- **Strike** = failed verify this phase (build/compile/typecheck **or** tests).
-- **3 strikes = out** → reset to last good phase / last good builds tag (`./get-builds-tag.sh` preflight when present).
-- **3 outs = end of inning** →  
-  `sandbox/implementation-failure-logs/<date>-<slug>-inning-end.md`  
-  deeper analysis, **replan** (commonly smaller steps), restart.  
-- Default ~3–8 coherent phases; finer only post–inning-end. Egregious failure = immediate out.
-- Recovery plans include **Already completed (exclude)**.
-
-Plain language: after a failed implementation you get fix attempts within the strike budget; after three outs, stop and replan rather than repeating the same failing approach.
-
----
-
-## 6. Git reset (three contexts only)
-
-**Preflight:** `TAG=$(./get-builds-tag.sh)` when the helper exists; then verify/reset. No relative-ref games.
-
-1. **Uncommitted junk:** `git checkout .` / `git restore .` / `git reset --hard HEAD`
-2. **Build/baseball recovery:** `git reset --hard builds` (master) or `git reset --hard <current-branch>/builds` only
-3. **Forbidden:** any relative ref (`HEAD^`, `HEAD~`, …); arbitrary hashes unless user supplies; `origin/*`; other agents’ tags; **agent push/force-push**
-
----
-
-## 7. Geography and special files
-
-- **Never** `..` to escape the worktree for convenience.
-- Sandbox: `sandbox/` (plans, research, failure logs, PRs, gates). Prefer absolute host path from `project-facts.md` when cwd is not orchestration root.
-- Orchestration root is source for `./update-rules.sh`. Tracked copies into other worktrees must be committed or applied via update-rules.
-- **Plans:** user-designated under `sandbox/plans/` only. Completed → `sandbox/historical-plans/`. Never harness session `plan.md` as approved work plan.
-- **Filenames:** `descriptive-kebab-YYYYMMDD-HHMM-plan.md`.
-- **Plan content:** Context, Approach, Critical Files, reuse, **Phased Execution**, Verification/Acceptance. Cite STANDARD BLOCK by path only. Soft ~2–8 KB. Style: `sandbox/research/plan-style-guide.md`.
-- **project-facts:** orientation only; full read on launch/new cycle/before major edit.
-- **TODO:** future only; `./todo-append` / `./todo-close` only.
-- **ENGINEERING_LOG:** `./append-to-engineering-log` only (append-only file; do not rewrite history of the log by hand).
-
----
-
-## 8. Logs and diagnostics
-
-- Prefer project log files / test output into sandbox once; analyze locally.
-- **No adb/logcat** requirements (not applicable).
-
----
-
-## 9. Engineering defaults
-
-- Prefer `jq` for JSON when relevant.
-- **New CLIs:** long options (`getopt_long` or language equivalent) — structured flags, not ad-hoc parsing only.
-- Language-specific build/test entrypoints live in-repo; document in `project-facts.md` when stable.
-- Consumer pins (VehicleExpenses, etc.) are **pull** model — this repo does not push into consumers.
-
----
-
-## 10. Re-read policy
-
-Mandatory role pack at: session start; after compact; new planning cycle; execution start for a new approved plan.
-
-| Everyone | + Planner | + Coder | + Master / orch after handoff |
-|----------|-----------|---------|--------------------------------|
-| `AGENT_CONTEXT.md`, overlay, this file, full `project-facts.md` | STANDARD BLOCK path, plan-style-guide, designated plan, spawn prompts when spawning | STANDARD BLOCK, **approved plan**, execution prompt when spawning | `MASTER_AGENT_MANDATE.md`; **`MULTI_AGENT_USER_INSTRUCTIONS.md`** |
-
-Not every message.
-
----
-
-## 11. Roles
-
-| Role | Plans | Implements product |
-|------|-------|--------------------|
+| Role | Plans | App source |
+|------|-------|------------|
 | Planner | Yes | No |
-| Coder | No | Yes (approved plan only) |
-| Master | No | Coordinate / merge / dispatch execute |
-| Orchestrator / bare run-grok | Meta | Meta; optional native plan mode |
+| Coder | No | Yes, the approved plan |
+| Master | No | Dispatch and merge |
+| Orchestrator | Meta | Meta |
 
-Planner owns new cycles. Failure logs under `sandbox/implementation-failure-logs/`.
-
----
-
-## 12. Human / launcher detail
-
-Magic phrases and two-terminal ritual: `MULTI_AGENT_USER_INSTRUCTIONS.md`. Launchers compose files under `.grok/prompts/` — do not re-author conflicting law in shell strings.
+A long-lived coder or master session dispatches a fresh child. The child prompt is `.grok/prompts/execution-subagent.md` plus the plan path. The parent does not implement the plan.
