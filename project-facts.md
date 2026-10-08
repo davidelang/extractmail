@@ -7,7 +7,7 @@ Cold-start orientation. Prune; no plan/branch status novels.
 - Orchestration: `~/git/extractmail/` (branch `orchestration`)
 - Product: `~/git/extractmail/master/` (branch `master`)
 - Features: `~/git/extractmail/agent-N/`
-- **Sandbox (absolute):** `~/git/extractmail/sandbox/` — plans, research, failure logs, PRs (use this when cwd is master/agent-N)
+- **Sandbox (absolute):** `@@ORCH_ROOT@@/@@SANDBOX_PATH@@/` — plans, research, failure logs, PRs (use this when cwd is master/agent-N)
 
 ## GitHub
 
@@ -23,7 +23,7 @@ Cold-start orientation. Prune; no plan/branch status novels.
 - `./setup_agent.sh` / `./remove_worktree.sh` — feature worktrees
 - `./get-builds-tag.sh` — builds tag preflight for baseball reset
 - `./run-grok-*` — role launchers
-- Project **verify** entrypoint: document here when implemented (language-specific)
+- Project **verify** entrypoint: `./scripts/run_all_conformance.sh` (Python + Go + Apps Script/Node + Kotlin/JVM). Also `python3 python/run_goldens.py`.
 
 ## Lifecycle tags
 
