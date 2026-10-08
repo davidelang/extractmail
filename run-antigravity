@@ -7,8 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR" || exit 1
 
 # Stamped defaults (smudge replaces @@…@@ from project.config)
-sandbox_path=dev-ai-interaction
-antigravity_bin=@@ANTIGRAVITY_BIN@@
+sandbox_path=@@SANDBOX_PATH@@
+antigravity_bin=$HOME/git/antigravity/agy
 orchestrator_user=@@ORCHESTRATOR_USER@@
 
 if [ -f project.config ]; then
