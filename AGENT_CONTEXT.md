@@ -1,7 +1,7 @@
-# AGENT_CONTEXT.md — master
+# AGENT_CONTEXT.md
 
-- **Agent ID:** master
-- **Current Branch:** master
-- **Role:** Master / product
-- **Sandbox:** /home/dlang/git/extractmail/sandbox/
+- **Agent ID:** continue-implementation
+- **Current Branch:** continue-implementation
+- **Role:** coder/planner as launched
+- **Sandbox:** @@ORCH_ROOT@@/@@SANDBOX_PATH@@/
 - **Status:** ACTIVE

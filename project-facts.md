@@ -7,7 +7,7 @@ Cold-start orientation. Prune; no plan/branch status novels.
 - Orchestration: `~/git/extractmail/` (branch `orchestration`)
 - Product: `~/git/extractmail/master/` (branch `master`)
 - Features: `~/git/extractmail/agent-N/`
-- **Sandbox (absolute):** `~/git/extractmail/sandbox/` — plans, research, failure logs, PRs (use this when cwd is master/agent-N)
+- **Sandbox (absolute):** `@@ORCH_ROOT@@/@@SANDBOX_PATH@@/` — plans, research, failure logs, PRs (use this when cwd is master/agent-N)
 
 ## GitHub
 
