@@ -21,7 +21,7 @@ cd "$SCRIPT_DIR" || exit 1
 
 # Stamped defaults (smudge replaces @@…@@ from project.config)
 sandbox_path=@@SANDBOX_PATH@@
-git_home=/home/dlang/git
+git_home=@@GIT_HOME@@
 primary_user=@@PRIMARY_USER@@
 grok_bin_default=@@GROK_BIN_DEFAULT@@
 planning_user=@@PLANNING_USER@@
