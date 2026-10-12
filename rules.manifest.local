@@ -1,0 +1,2 @@
+# rules.manifest.local: host-specific infra, synced only root -> this host's worktrees.
+# Seeded from the legacy update-rules.sh FILES lists. Format: local <path>
