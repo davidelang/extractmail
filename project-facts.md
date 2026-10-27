@@ -22,7 +22,7 @@ Cold-start orientation. Prune; no plan/branch status novels.
 - `./update-rules.sh` — sync policy from orchestration into worktrees
 - `./setup_agent.sh` / `./remove_worktree.sh` — feature worktrees
 - `./get-builds-tag.sh` — builds tag preflight for baseball reset
-- `./run-grok-*` — role launchers
+- `./run-grok-*` — role launchers. Grok confinement is a sandbox profile (`extends=read-only`, generated `.grok/sandbox.toml`). Cursor launchers still use `agent-landlock`. Planner writes `work-history/` (root `TODO.md` and `ENGINEERING_LOG.md` are symlinks).
 - Project **verify** entrypoint: document here when implemented (language-specific)
 
 ## Lifecycle tags
