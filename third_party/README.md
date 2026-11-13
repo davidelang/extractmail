@@ -65,7 +65,7 @@ third_party/<lib>/
   status.local    # gitignored — ro/rw mode (not the pin)
 ```
 
-Optional local accelerator: full clone under `GIT_HOME` (e.g. `~/git/opencv`). fetch-deps may attach a **worktree** at `src/` so history stays outside the app tree. **Correctness does not require GIT_HOME.**
+Optional local accelerator: full clone under `GIT_HOME` (e.g. `~/git/opencv`). fetch-deps clones `--no-hardlinks` from that host shortcut into `src/` (linked worktrees and `--shared` checkouts are replaced). **Correctness does not require GIT_HOME.**
 
 ---
 
@@ -101,7 +101,7 @@ Optional local accelerator: full clone under `GIT_HOME` (e.g. `~/git/opencv`). f
 ./third_party/get-artifacts [NAME…]     # collect only (iterate builds)
 ```
 
-`--depth N` — optional shallow clone (not default). See `fetch-deps --help`.
+`--depth`, `--allow-ssh`, and `--worktree-search` were removed in libpin 2026.10.24. See `fetch-deps --help`.
 
 ---
 
