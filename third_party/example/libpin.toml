@@ -1,5 +1,7 @@
 # Hello-world pin — demonstrates libpin.toml fields for docs and tooling smoke tests.
 name = "example"
+source_kind = "seed-src"
+default = false
 git_ssh = ""
 git_https = ""
 # No remote: materialize via seed-src (see SOURCE.md).
@@ -16,3 +18,4 @@ path = "artifact/hello.bin"
 # Build leaves a version/timestamp in the filename — pick newest by mtime
 from = "src/bin/hello-*.bin"
 pick = "newest"
+sha256 = "35118af70f0bb939483ffaf66d18d7e7ea3bda35a5ac18a2c1b97586b4ad51d6"
